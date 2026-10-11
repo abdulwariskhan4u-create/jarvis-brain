@@ -1,0 +1,177 @@
+{
+  "framework_commit": "45f57dd0",
+  "parent_before_pin": "d98e18a",
+  "environment": "local Jarvis backend8000, UI3000, Vite game3100; committed Ladybug0.17.1",
+  "team_session": "fd71cddd",
+  "observation_scope": "actual UI resumed existing7-member team, changes sent through root chat and per-agent monitor; operator interventions explicit",
+  "actual_failures": [
+    {
+      "jira": "SCRUM-91",
+      "finding": "filesystem read_multiple_files decoded PNG as UTF8 text",
+      "observed_tool_result": {
+        "chars": 8581,
+        "replacement_chars": 3604,
+        "nul_chars": 55
+      },
+      "status": "open"
+    },
+    {
+      "jira": "SCRUM-92",
+      "finding": "bare cat inherited agent RPC stdin; ping traffic prevented inactivity expiry",
+      "old_duration_ms": 427825.7,
+      "old_recovery": "operator SIGTERM exact cat process, then same-agent resume after broken pipe",
+      "fix": "DEVNULL for noninteractive shell stdin",
+      "new_actual_run": "76d30db9",
+      "new_duration_ms": 134.1,
+      "new_exit_code": 0,
+      "status": "live probe passed"
+    },
+    {
+      "jira": "SCRUM-93",
+      "finding": "mid-tool inbox factory looked at legacy workspace inbox instead of canonical session inbox",
+      "before_delivery_seconds": 224.803,
+      "after_delivery_seconds": 9.876,
+      "dedup_regression": "idle wake supplied a prompt and hook appended same unread envelope again",
+      "fix": "typed inbox-envelope IDs in internal channel; stage acknowledgement without duplicate append",
+      "new_run": "29bdf168",
+      "manual_checks": {
+        "running_message": "782778fc",
+        "idle_wake_message": "02b77549",
+        "each_occurrences_in_visible_user_history": 1
+      },
+      "status": "both paths observed once; Dev applied focus/persistence checklist"
+    },
+    {
+      "jira": "SCRUM-71",
+      "finding": "game Settings layout handoff passed27tests but manual click hid entire panel",
+      "root_cause": "settings pane nested under card hidden by settings-open CSS",
+      "team_fix": "pane moved outside card;28game tests passed",
+      "manual_after_fix": [
+        "desktop panel mounted",
+        "390px viewport measured; panel scroll reaches High-contrast",
+        "DONE clickable",
+        "focus restored to openSettings",
+        "saved contrast/reduced-motion/mute choices retained"
+      ],
+      "status": "Settings checks passed; full game acceptance open"
+    }
+  ],
+  "compact": {
+    "observed_real_pre_compaction_snapshots": [
+      806,
+      808
+    ],
+    "retained_in_actual_summary": [
+      "High-contrast HUD",
+      "reduced motion",
+      "workspace",
+      "600s goal",
+      "revision5"
+    ],
+    "continued_after_compact": "Dev implemented and tested actual game changes; no fake clock used",
+    "limit": "not proof that all long-task requirements or gameplay quality passed"
+  },
+  "cost": {
+    "baseline_token_usage_id": 2708,
+    "includes": "root, all team activity, compactor, memory extractor after local restart",
+    "pricing": "all observed gpt-6-luna rows use fallback; estimates are not billing",
+    "agents": [
+      {
+        "agent_name": "Avery [Designer]",
+        "calls": 30,
+        "input_tokens": 1999644,
+        "output_tokens": 5092,
+        "cache_hit_tokens": 1708544,
+        "estimated_cost": 2.91435
+      },
+      {
+        "agent_name": "Charlie [BA]",
+        "calls": 37,
+        "input_tokens": 2519891,
+        "output_tokens": 8362,
+        "cache_hit_tokens": 2268416,
+        "estimated_cost": 3.5478275
+      },
+      {
+        "agent_name": "Devon [QE]",
+        "calls": 164,
+        "input_tokens": 9419799,
+        "output_tokens": 18331,
+        "cache_hit_tokens": 8465152,
+        "estimated_cost": 13.1513675
+      },
+      {
+        "agent_name": "Jarvis",
+        "calls": 27,
+        "input_tokens": 1111316,
+        "output_tokens": 3694,
+        "cache_hit_tokens": 875776,
+        "estimated_cost": 1.72051
+      },
+      {
+        "agent_name": "Quinn [Dev]",
+        "calls": 186,
+        "input_tokens": 12407051,
+        "output_tokens": 34242,
+        "cache_hit_tokens": 10750464,
+        "estimated_cost": 17.9219675
+      },
+      {
+        "agent_name": "Sam [PM]",
+        "calls": 115,
+        "input_tokens": 6483078,
+        "output_tokens": 18104,
+        "cache_hit_tokens": 5634304,
+        "estimated_cost": 9.345855
+      },
+      {
+        "agent_name": "Sawyer [SA]",
+        "calls": 24,
+        "input_tokens": 1311955,
+        "output_tokens": 3734,
+        "cache_hit_tokens": 1058816,
+        "estimated_cost": 1.9937075
+      },
+      {
+        "agent_name": "Toby [DSO]",
+        "calls": 15,
+        "input_tokens": 889666,
+        "output_tokens": 2317,
+        "cache_hit_tokens": 728832,
+        "estimated_cost": 1.336295
+      },
+      {
+        "agent_name": "compactor",
+        "calls": 7,
+        "input_tokens": 140609,
+        "output_tokens": 12729,
+        "cache_hit_tokens": 20992,
+        "estimated_cost": 0.4525725
+      },
+      {
+        "agent_name": "memory-extractor",
+        "calls": 49,
+        "input_tokens": 202968,
+        "output_tokens": 7410,
+        "cache_hit_tokens": 2816,
+        "estimated_cost": 0.578
+      }
+    ],
+    "no_ab_savings_claim": true
+  },
+  "verification": {
+    "new_framework_spawn_and_stdin_suite": "28passed",
+    "new_dedup_tests": "3failed before fix;3passed after",
+    "lint": "passed",
+    "targeted_types": "passed",
+    "full_framework_types": "110diagnostics; not passed"
+  },
+  "open_gates": [
+    "real600s survival, boss/end and offline game acceptance",
+    "game graphics quality acceptance",
+    "binary tool protection SCRUM91",
+    "historical status/context/CC bloat SCRUM89",
+    "autonomous shell timeout recovery policy",
+    "native internal crash root trigger; process isolation tested separately"
+  ]
+}
