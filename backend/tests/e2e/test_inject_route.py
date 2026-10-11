@@ -425,7 +425,7 @@ async def test_duplicate_agent_name_requires_team_and_routes_to_matching_session
     assert ambiguous.status_code == 409
     assert ambiguous.json()["detail"]["session_ids"] == ["team-a", "team-b"]
     assert selected.status_code == 200
-    message_bus.assert_awaited_once_with("Quinn [PM]", "hello", records[1])
+    message_bus.assert_awaited_once_with("Quinn [PM]", "hello", records[1], [])
     broadcast.assert_called_once()
     assert broadcast.call_args.args[0]["session_id"] == "team-b"
 
