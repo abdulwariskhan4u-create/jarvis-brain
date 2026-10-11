@@ -1,5 +1,5 @@
 {
-  "framework_commit": "45f57dd0",
+  "framework_commit": "ac7c2d0a",
   "parent_before_pin": "d98e18a",
   "environment": "local Jarvis backend8000, UI3000, Vite game3100; committed Ladybug0.17.1",
   "team_session": "fd71cddd",
@@ -53,7 +53,7 @@
         "focus restored to openSettings",
         "saved contrast/reduced-motion/mute choices retained"
       ],
-      "status": "mounting/scroll/DONE checks passed; keyboard overlap reproduced and partial CSS fix insufficient; revision7 requests viewport dialog with separate footer",
+      "status": "Rev7 implementation reported30tests and build passed; QE explicitly reports mobile/keyboard gaps; operator desktop controls visible; Mac locked before screenshots/mobile retest",
       "keyboard_evidence": {
         "viewport_width": 390,
         "focused": "contrastSetting",
@@ -62,6 +62,22 @@
         "visual_problem_remains": "DONE still covers Reduce motion; single center assertion insufficient",
         "team_change_revision": 7
       }
+    },
+    {
+      "jira": "SCRUM-94",
+      "finding": "agent role header auto-activated as user fact: user is Devon working QE",
+      "root_cause": "team transcript routed through personal extractors; hardcoded user subject scope",
+      "fix": "agent-experience extractor plus code-enforced allowed kinds and agent-owned scope",
+      "tests": "2685 backend tests pass; live retest pending",
+      "local_remediation": "archived only incorrect record; approved procedural lesson preserved"
+    },
+    {
+      "jira": "SCRUM-95",
+      "finding": "cancel killed uv launcher but Python77309 remained PPID1; same Dev continued writing Rev7 and reported30game tests after cancel",
+      "fix": "birth-checked owned descendant cleanup; explicit cancellation reason; await task; cancel stderr reader",
+      "tdd": "2 behavioural regressions failed before fix;5 targeted and144 spawn/inbox tests pass after",
+      "status": "same-team live retest pending after v8 restart",
+      "operator_intervention": "checkpoint and cleaned only acceptance-checkout runner trees;7 roots,zero survivors; unrelated worktrees untouched"
     }
   ],
   "compact": {
@@ -269,5 +285,6 @@
       }
     ],
     "interpretation": "Identical file output is candidate for conditional-version reads, not proof call was unnecessary. Browser snapshots may legitimately repeat. No exact repeated memory bullet observed in sampled snapshots."
-  }
+  },
+  "additional_open_gate": "Native0.17.1 worker unexpectedly exited again during link_entity at13:57:58; backend retained SQLite/FTS; native trigger not proven or fixed"
 }
