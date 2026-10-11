@@ -19,6 +19,7 @@ from core.database import EpisodicDocument, MemoryRecord, SessionLocal
 from services.indexing import chunker, fts_index
 from services.indexing import outbox_service as ob
 from services.indexing.embedding_provider import get_shared_embedding_provider
+from services.indexing.ladybug_worker import GraphUnavailable
 
 logger = logging.getLogger("memory.index_worker")
 
@@ -129,6 +130,11 @@ class MemoryIndexWorker:
                     else:
                         ob.mark_done(db, row.id, now=now)
                         stats["done"] += 1
+                except GraphUnavailable as exc:
+                    logger.warning("[MEMORY] native projection deferred for task %s: %s; "
+                                   "durable intent retained", row.id, exc)
+                    ob.defer(db, row.id, delay_s=self.DEGRADED_DEFER_S, now=now)
+                    stats["deferred"] += 1
                 except Exception as exc:  # noqa: BLE001 — record + backoff, never crash the loop
                     logger.error("[MEMORY] index task %s failed: %s", row.id, exc, exc_info=True)
                     ob.mark_failed(db, row.id, error=str(exc), now=now)

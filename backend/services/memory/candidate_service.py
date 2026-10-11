@@ -22,6 +22,7 @@ from core.database import MemoryCandidate
 from services.memory.memory_service import MemoryService
 from services.memory.models import CandidateStatus
 from services.memory.sensitivity import has_secret
+from services.memory.learning_quality import LearningAdmissionError, validate_learning
 
 logger = logging.getLogger("memory.candidate")
 
@@ -64,6 +65,7 @@ def create_candidate(
     candidates that need neither curator nor approval are persisted
     immediately (auto_approved)."""
     now = time.time() if now is None else now
+    validate_learning(payload, sources)
     content = payload.get("content", "")
     dedupe = _dedupe_key(owner_agent_name, content, payload.get("subject_scope", "user"))
 
@@ -171,6 +173,8 @@ def ingest_compactor_candidates(
     caller's to swallow. Returns the candidate ids created."""
     now = time.time() if now is None else now
     ids: list[str] = []
+    from services.memory.learning_sources import is_team_member
+    team_member = is_team_member(db, owner_agent_name)
     for c in candidates or []:
         content = c.get("content", "")
         if not content:
@@ -179,18 +183,24 @@ def ingest_compactor_candidates(
         high_conf = c.get("confidence", 0.0) >= 0.9
         # auto only when policy allows AND the compactor was explicit+confident
         requires_approval = not (approval_policy == "auto_low_risk" and explicit and high_conf)
-        cand = create_candidate(
-            db, owner_agent_name=owner_agent_name,
-            candidate_type=f"compaction_{c.get('type', 'semantic')}",
-            payload={"memory_type": c.get("type", "semantic"), "content": content,
-                     "subject_scope": c.get("subject_scope", f"agent:{owner_agent_name}"),
-                     "authority": "agent_observed", "subtype": c.get("subtype")},
-            sources=[{"source_type": "compaction", "source_id": str(idx)}
-                     for idx in c.get("source_message_indexes", [])],
-            confidence=c.get("confidence", 0.5),
-            requires_approval=requires_approval, now=now,
-            pinned_token_budget=pinned_token_budget,
-        )
+        try:
+            cand = create_candidate(
+                db, owner_agent_name=owner_agent_name,
+                candidate_type=f"compaction_{c.get('type', 'semantic')}",
+                payload={"memory_type": c.get("type", "semantic"), "content": content,
+                         "subject_scope": (f"agent:{owner_agent_name}" if team_member else
+                                           c.get("subject_scope", f"agent:{owner_agent_name}")),
+                         "authority": "agent_observed", "subtype": c.get("subtype"),
+                         "learning": c.get("learning")},
+                sources=[{"source_type": "compaction", "source_id": str(idx)}
+                         for idx in c.get("source_message_indexes", [])],
+                confidence=c.get("confidence", 0.5),
+                requires_approval=requires_approval, now=now,
+                pinned_token_budget=pinned_token_budget,
+            )
+        except LearningAdmissionError as exc:
+            logger.debug("[MEMORY] Compaction proposal skipped: %s", exc)
+            continue
         ids.append(cand.id)
     return ids
 
@@ -216,6 +226,8 @@ def _confidence_metadata(payload: dict) -> dict:
     for key in ("confidence_method", "reasoning_type", "excerpt_ok"):
         if payload.get(key) is not None:
             meta[key] = payload[key]
+    if isinstance(payload.get("learning"), dict):
+        meta["learning"] = payload["learning"]
     return meta
 
 

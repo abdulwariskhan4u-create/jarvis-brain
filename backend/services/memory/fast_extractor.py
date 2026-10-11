@@ -79,6 +79,7 @@ class ExtractedMemory:
     # is DERIVED from these by services.memory.confidence — never trusted raw.
     evidence_excerpt: str = ""
     reasoning_type: str = "direct"
+    learning: dict | None = None
 
     @property
     def memory_type(self) -> str:
@@ -113,7 +114,8 @@ def parse_extraction(raw: str) -> list[ExtractedMemory]:
         rtype = str(it.get("reasoning_type") or "direct").lower().strip()
         out.append(ExtractedMemory(kind=str(it.get("kind") or "fact").lower().strip(),
                                    content=content, entities=ents,
-                                   evidence_excerpt=excerpt, reasoning_type=rtype))
+                                   evidence_excerpt=excerpt, reasoning_type=rtype,
+                                   learning=it.get("learning") if isinstance(it.get("learning"), dict) else None))
     return out
 
 
@@ -245,6 +247,7 @@ def _persist_candidates(
                              "subject_scope": subject_scope, "authority": "agent_observed",
                              "confidence": verdict.confidence, "entities": m.entities,
                              "reasoning_type": m.reasoning_type, "excerpt_ok": excerpt_ok,
+                             "learning": m.learning,
                              "confidence_method": verdict.method},
                     confidence=verdict.confidence, sources=sources,
                     # Fabricated/unverified evidence never auto-saves — a human vets it.

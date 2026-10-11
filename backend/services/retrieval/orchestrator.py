@@ -274,6 +274,8 @@ class RetrievalOrchestrator:
     def _finalize(self, request, fused, *, level, cache_hit, budget, ledger, turn, now,
                   t0: float, dense_failed=False,
                   timings: dict[str, int | None] | None = None) -> RetrievalResult:
+        from services.retrieval.memory_validity import authorize_memory_evidence
+        fused = authorize_memory_evidence(self.db, fused, owner=request.owner_agent_name, now=now)
         # Recency/authority policy is applied HERE (not only pre-cache) so cache
         # hits get fresh recency at the current ``now``. apply_policy is
         # idempotent (re-derives order from rrf + boost(now), no cumulative

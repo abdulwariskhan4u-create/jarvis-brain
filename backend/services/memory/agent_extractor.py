@@ -11,18 +11,29 @@ if TYPE_CHECKING:
     from services.memory.settings import MemorySettings
 
 logger = logging.getLogger(__name__)
-_ALLOWED_KINDS = frozenset({"workflow", "procedural", "episodic", "decision"})
+_ALLOWED_KINDS = frozenset({"workflow", "procedural", "decision"})
 _AGENT_PROMPT = """Extract reusable experience for the working AGENT from this team transcript.
 Messages may originate from other agents, tools, operator directions, or persisted
 context. The user role in this transcript does not establish human authorship.
 Agent names and role headers identify team members, NOT the human user.
-Extract reusable procedures, verified work outcomes and decisions only. Do not
+Extract only a concise lesson that will change future work, backed by an observed
+improvement after trying a different approach. Do not
 infer personal facts, identities, preferences or standing instructions about the
-human user. Omit unsupported claims and transient task/status messages.
-Return only a JSON array. Each item must have kind (workflow|procedural|episodic|decision),
-content (a clear statement about the agent's experience), evidence_excerpt (an exact
+human user. Task progress, run reports, remaining acceptance gates, untested advice,
+generic good practice and instructions to do a current task are NOT lessons.
+Example: repeated clarification -> agree owner/output/acceptance before delegation
+-> observed fewer clarification messages with the same acceptance quality.
+Store the resulting conditional workflow, not each message or the retro transcript.
+If the improvement was not tried or has no evidence, return [].
+Return only a JSON array, at most 3 lessons. Each item must have kind (workflow|procedural|decision),
+content (one conditional lesson, at most 600 characters), evidence_excerpt (an exact
 verbatim quote from the transcript), reasoning_type (direct|synthesis|inference),
-and optional entities. Return [] if there is no reusable experience.
+learning {problem, change, applies_when, outcome_excerpt}, and optional entities.
+Each learning field is a nonempty string of at most 400 characters. outcome_excerpt
+must quote the observed improvement verbatim and be included in evidence_excerpt.
+Never invent measurements, outcomes, confidence, or expiry to justify a save.
+ALREADY KNOWN lessons below must not be re-extracted or trivially paraphrased.
+Return [] if there is no new, verified reusable experience.
 """
 
 
@@ -45,11 +56,13 @@ async def run_agent_extraction(
     if generate is None:
         return []
     try:
-        raw = await generate(_AGENT_PROMPT + "\n\nTeam transcript:\n" + snippet)
+        known = fast_extractor._known_facts(owner, limit=12)
+        prompt = _AGENT_PROMPT + "\n\nALREADY KNOWN:\n" + "\n".join(known)
+        raw = await generate(prompt + "\n\nTeam transcript:\n" + snippet)
     except Exception:
         logger.warning("[MEMORY] Agent experience extraction failed for %s", owner, exc_info=True)
         return []
-    memories = [m for m in fast_extractor.parse_extraction(raw) if m.kind in _ALLOWED_KINDS]
+    memories = [m for m in fast_extractor.parse_extraction(raw) if m.kind in _ALLOWED_KINDS][:3]
     if not memories:
         return []
     return fast_extractor._persist_candidates(

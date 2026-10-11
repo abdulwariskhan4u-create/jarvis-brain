@@ -91,11 +91,9 @@ async def memory_fetch(*, agent_name: str, evidence_ids: list) -> dict:
                     out.append({"evidence_id": eid, "content": doc.content,
                                 "source_id": doc.source_id})
             elif kind == "memory":
+                from services.retrieval.memory_validity import current_memory
                 rec = db.get(MemoryRecord, rid)
-                if (rec and rec.owner_agent_name == agent_name
-                        and rec.status == "active"
-                        and (rec.valid_from is None or rec.valid_from <= now)
-                        and (rec.valid_until is None or now < rec.valid_until)):
+                if rec and current_memory(rec, owner=agent_name, now=now):
                     out.append({"evidence_id": eid, "content": rec.content})
             elif kind == "comm":
                 # Graph/comm evidence uses the canonical {kind}:{id} scheme too;
@@ -113,7 +111,7 @@ async def memory_fetch(*, agent_name: str, evidence_ids: list) -> dict:
 
 async def memory_remember(*, agent_name: str, content: str,
                           memory_type: str = "semantic", subject_scope: str | None = None,
-                          pinned: bool = False) -> dict:
+                          pinned: bool = False, learning: dict | None = None) -> dict:
     """Propose a durable memory. NEVER writes active memory directly — creates
     a candidate. Whether it auto-persists or awaits approval follows the
     approval policy (secrets always require approval)."""
@@ -123,6 +121,8 @@ async def memory_remember(*, agent_name: str, content: str,
         return {"error": "missing bound agent identity"}
     from services.memory import candidate_service as cnd
     from services.memory.models import is_valid_subject_scope
+    from services.memory.learning_quality import LearningAdmissionError
+    from services.memory.learning_sources import is_team_member, verified_learning_sources
     settings = get_memory_settings()
     # The agent doesn't pick the scope taxonomy; default to the user. A scope
     # the LLM guessed (e.g. "user_profile") is normalized, never an error —
@@ -139,17 +139,24 @@ async def memory_remember(*, agent_name: str, content: str,
                                 authority="agent_observed")
     db = get_db_session()
     try:
+        if is_team_member(db, agent_name):
+            scope = f"agent:{agent_name}"
+        sources = verified_learning_sources(db, agent_name, learning) if scope.startswith("agent:") else []
         cand = cnd.create_candidate(
             db, owner_agent_name=agent_name, candidate_type="agent_remember",
             payload={"memory_type": memory_type, "content": content,
                      "subject_scope": scope, "authority": "agent_observed",
                      "pinned": pinned, "confidence": verdict.confidence,
-                     "confidence_method": verdict.method},
+                     "confidence_method": verdict.method, "learning": learning},
+            sources=sources,
             confidence=verdict.confidence,
             requires_approval=requires_approval,
             pinned_token_budget=settings.pinned_token_budget,
         )
         return {"candidate_id": cand.id, "status": cand.status}
+    except LearningAdmissionError as exc:
+        return {"status": "not_saved", "reason": str(exc),
+                "next_action": "Keep task state in history. Propose a short tested workflow after retro; cite its observed improvement."}
     finally:
         db.close()
 
@@ -179,7 +186,8 @@ async def memory_forget(*, agent_name: str, memory_id: str, reason: str = "") ->
         db.close()
 
 
-async def procedure_propose(*, agent_name: str, title: str, steps: str) -> dict:
+async def procedure_propose(*, agent_name: str, title: str, steps: str,
+                            learning: dict | None = None) -> dict:
     """Propose a reusable procedure/Skill. Always requires approval; never
     auto-published."""
     if not _enabled():
@@ -187,15 +195,21 @@ async def procedure_propose(*, agent_name: str, title: str, steps: str) -> dict:
     if not agent_name:
         return {"error": "missing bound agent identity"}
     from services.memory import candidate_service as cnd
+    from services.memory.learning_quality import LearningAdmissionError
+    from services.memory.learning_sources import verified_learning_sources
     db = get_db_session()
     try:
         cand = cnd.create_candidate(
             db, owner_agent_name=agent_name, candidate_type="procedure",
             payload={"memory_type": "procedural", "content": f"{title}\n{steps}",
-                     "subject_scope": f"agent:{agent_name}", "authority": "agent_observed"},
+                     "subject_scope": f"agent:{agent_name}", "authority": "agent_observed",
+                     "learning": learning},
+            sources=verified_learning_sources(db, agent_name, learning),
             requires_approval=True,
         )
         return {"candidate_id": cand.id, "status": cand.status}
+    except LearningAdmissionError as exc:
+        return {"status": "not_saved", "reason": str(exc)}
     finally:
         db.close()
 

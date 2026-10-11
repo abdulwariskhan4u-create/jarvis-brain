@@ -1819,6 +1819,8 @@ class SpawnProgressBridge:
         """
         if not orch:
             return
+        from services.worker_outcome_report import worker_result_state
+        previous_results = self._previous_worker_results(session_id)
         event_id = f"{session_id}:worker_cycle_closed:{close_seq}"
         if not self._insert_event(
             event_id, "worker_cycle_closed", session_id, team_name,
@@ -1826,12 +1828,12 @@ class SpawnProgressBridge:
                 {"agent_name": w.get("agent_name"),
                  "status": w.get("status"),
                  "run_id": w.get("run_id")} for w in workers
-            ]},
+            ], "worker_results": worker_result_state(workers)},
         ):
             return  # Conflict — another caller already emitted this close.
 
         orch_name = orch.get("agent_name", "")
-        report = self._format_worker_status_report(workers, orch_name)
+        report = self._format_worker_status_report(workers, orch_name, previous_results=previous_results)
         messages_dir = self._resolve_messages_dir(members)
         if not messages_dir:
             logger.warning(
@@ -1914,45 +1916,38 @@ class SpawnProgressBridge:
             team_name, event_id,
         )
 
+    def _previous_worker_results(self, session_id: str) -> dict | None:
+        """Use the last durable report, so restart does not replay old outcomes."""
+        try:
+            from core.agent_registry_db import _connect
+            with _connect() as conn:
+                row = conn.execute(
+                    "SELECT payload_json FROM team_events WHERE session_id=? "
+                    "AND event_type='worker_cycle_closed' ORDER BY created_at DESC, event_id DESC LIMIT 1",
+                    (session_id,),
+                ).fetchone()
+            if row is None:
+                return None
+            payload = json.loads(row[0])
+            if isinstance(payload.get("worker_results"), dict):
+                return payload["worker_results"]
+            return {worker.get("agent_name", "?"): worker for worker in payload.get("workers", [])}
+        except Exception:
+            logger.warning("[CYCLE] Previous worker result snapshot unavailable", exc_info=True)
+            return None
+
     def _format_worker_status_report(
         self, workers: list[dict], orch_name: str,
+        *, previous_results: dict | None = None,
     ) -> str:
         """Build the markdown status report sent to the orchestrator's inbox on
         ``worker_cycle_closed``. Preserves the meeting-aware framing
         from the prior implementation (b61af7db incident) — if a member
         is still mid-meeting the header reframes to "NOT done".
         """
-        status_icons = {
-            "idle": "✅", "completed": "✅",
-            "error": "❌", "timeout": "⏰", "cancelled": "🚫",
-        }
+        from services.worker_outcome_report import build_worker_report
         member_names = {w.get("agent_name", "") for w in workers if w.get("agent_name")}
         member_names.add(orch_name)
-        active_meetings = self._active_meetings_with_members(member_names)
-
-        if active_meetings:
-            header = (
-                f"⏳ **Team Status Update** — members are idle but "
-                f"{len(active_meetings)} meeting(s) still open. Team is NOT done."
-            )
-        else:
-            header = (
-                "📋 **Team Status Update** — All members have stopped running. "
-                "Idle may mean waiting for approval or input; review outcomes before declaring completion."
-            )
-        lines = [header, "", "| Member | Status | Summary |", "|--------|--------|---------|"]
-        for w in workers:
-            name = w.get("agent_name", "?")
-            status = w.get("status", "?")
-            icon = status_icons.get(status, "❓")
-            if status == "error":
-                summary = (w.get("error", "") or "Unknown error")[:80]
-            else:
-                summary = (w.get("result", "") or "No output")[:80]
-            summary = summary.replace("\n", " ").replace("|", "/").strip()
-            lines.append(f"| {name} | {icon} {status} | {summary} |")
-        if active_meetings:
-            lines.append(self._format_active_meetings_warning(active_meetings))
-        else:
-            lines.append("\nReview outputs and decide next actions.")
-        return "\n".join(lines)
+        meetings = self._active_meetings_with_members(member_names)
+        warning = self._format_active_meetings_warning(meetings) if meetings else ""
+        return build_worker_report(workers, previous=previous_results, meeting_warning=warning)

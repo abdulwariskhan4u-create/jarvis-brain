@@ -48,3 +48,18 @@ def test_closed_worker_rejects_new_requests(tmp_path):
     assert store.worker_pid is None
     with pytest.raises(GraphUnavailable, match="closed"):
         store.count()
+
+
+def test_native_crash_reports_actual_exit_code_before_recovery(tmp_path, caplog):
+    pytest.importorskip("ladybug")
+    from services.indexing.ladybug_worker import IsolatedLadybugStore, GraphUnavailable
+    store = IsolatedLadybugStore(str(tmp_path / "graph"), cooldown=0)
+    try:
+        os.kill(store.worker_pid, signal.SIGKILL)
+        store._process.join(timeout=5)
+        with pytest.raises(GraphUnavailable, match="exitcode=-9"):
+            store.count()
+        assert "exitcode=-9" in caplog.text
+        assert store.count() == 0
+    finally:
+        store.close()

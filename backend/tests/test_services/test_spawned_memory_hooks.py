@@ -39,6 +39,7 @@ async def test_spawn_capture_crosses_real_rpc_and_persists_owner_candidate(tmp_p
     init_db()
     cfg = MemorySettings(enabled=True, approval_policy="manual")
     monkeypatch.setattr("services.memory.spawn_handlers.get_memory_settings", lambda: cfg)
+    outcome = 'Bundling assets locally removed all runtime network requests in the offline test.'
     async def generate(prompt):
         assert "Always keep games playable offline." in prompt
         return json.dumps([
@@ -46,6 +47,12 @@ async def test_spawn_capture_crosses_real_rpc_and_persists_owner_candidate(tmp_p
              "evidence_excerpt": "[Acceptance Dev]", "reasoning_type": "direct"},
             {"kind": "decision", "content": "The agent keeps game builds playable offline.",
              "evidence_excerpt": "Always keep games playable offline.", "reasoning_type": "direct"},
+            {"kind": "workflow", "content": "For offline games, bundle runtime assets locally before network-disabled acceptance.",
+             "evidence_excerpt": outcome, "reasoning_type": "direct",
+             "learning": {"problem": "Remote assets prevented offline play.",
+                          "change": "Bundle runtime assets locally.",
+                          "applies_when": "Building a game with offline requirements.",
+                          "outcome_excerpt": outcome}},
         ])
     monkeypatch.setattr("services.memory.fast_extractor.build_extractor_generate_fn", lambda *_args: generate)
     # A short path also works on macOS's 104-byte Unix-socket path limit.
@@ -57,14 +64,14 @@ async def test_spawn_capture_crosses_real_rpc_and_persists_owner_candidate(tmp_p
         try:
             client = RuntimeRpcClient(directory + "/rpc.sock")
             result = await asyncio.to_thread(client.call, "memory.capture", {
-                "agent_name": "Acceptance Dev", "snippet": "[Acceptance Dev] Always keep games playable offline.", "lane": lane})
+                "agent_name": "Acceptance Dev", "snippet": "[Acceptance Dev] Always keep games playable offline.\n" + outcome, "lane": lane})
             assert "error" not in result
             assert len(result["candidate_ids"]) == 1  # Agent header is not a user fact.
             with SessionLocal() as db:
                 candidate = db.get(MemoryCandidate, result["candidate_ids"][0])
                 assert candidate.owner_agent_name == "Acceptance Dev"
                 payload = json.loads(candidate.payload_json)
-                assert payload["content"] == "The agent keeps game builds playable offline."
+                assert payload["content"] == "For offline games, bundle runtime assets locally before network-disabled acceptance."
                 assert payload["subject_scope"] == "agent:Acceptance Dev"
         finally:
             await server.stop()

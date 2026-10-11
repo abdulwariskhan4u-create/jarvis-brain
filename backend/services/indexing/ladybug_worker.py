@@ -6,6 +6,7 @@ failure; writes are retried by the durable outbox, never replayed here.
 from __future__ import annotations
 
 import atexit
+import faulthandler
 import logging
 import multiprocessing
 import threading
@@ -24,6 +25,7 @@ class GraphUnavailable(RuntimeError):
 
 
 def _serve(connection, path: str) -> None:
+    faulthandler.enable()  # Native failures report Python call sites without payload contents.
     # No embedding model, agent runtime, or shared native libraries load here.
     from services.indexing.ladybug_store import LadybugStore
     store = None
@@ -126,9 +128,14 @@ class IsolatedLadybugStore:
                 self._connection.send((method, args, kwargs))
                 return self._receive()
             except (GraphUnavailable, OSError, EOFError) as exc:
-                logger.error("[MEMORY] %s failed in native worker: %s; SQLite/FTS retained", method, exc)
+                # EOF can arrive just before the OS records the child exit. Capture
+                # its real exit code before _discard clears/reaps the process.
+                self._process.join(timeout=0.2)
+                diagnostic = f"{exc} (pid={self._process.pid}, exitcode={self._process.exitcode})"
+                logger.error("[MEMORY] %s failed in native worker: %s; SQLite/FTS retained",
+                             method, diagnostic)
                 self._discard()
-                raise GraphUnavailable(str(exc)) from exc
+                raise GraphUnavailable(diagnostic) from exc
 
     def __getattr__(self, name: str):
         if name in _METHODS:
