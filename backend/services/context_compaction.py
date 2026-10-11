@@ -309,6 +309,11 @@ def _context_token_limit(agent: Any, cfg: CompactionConfig, agent_name: str = ""
             window = getattr(acc, "context_window_size", None)
     except Exception:
         window = None
+    if not window:
+        from services.model_catalog import context_window
+        model = getattr(getattr(agent, "usage_accumulator", None), "model", None)
+        if model:
+            window = context_window(model)
     if window:
         # Gateway combos rotate between real models with different
         # windows; threshold against the smallest window seen this
@@ -1337,6 +1342,14 @@ def create_context_compaction_hooks():
 
             agent = runner._agent
             raw_name = getattr(agent, "name", "Agent")
+            acc = getattr(agent, "usage_accumulator", None)
+            cfg = get_compaction_config()
+            if (cfg.enabled and cfg.max_context_tokens == 0
+                    and acc is not None and not getattr(acc, "context_window_size", None)):
+                from services.model_catalog import context_window
+                model = getattr(acc, "model", None)
+                if model:
+                    await asyncio.to_thread(context_window, model, True)
             await maybe_compact_agent(
                 agent,
                 agent_name=normalize_agent_name(raw_name),

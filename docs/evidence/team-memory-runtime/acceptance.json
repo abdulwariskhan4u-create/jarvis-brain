@@ -1,0 +1,75 @@
+{
+  "recorded_at": "2026-10-11",
+  "environment": "local Jarvis + Atlassian Cloud test workspace",
+  "retrospective": {
+    "meeting_id": "04b2080c",
+    "participants": [
+      "Sam [PM]",
+      "Devon [QE]",
+      "Quinn [Dev]"
+    ],
+    "entries": 6,
+    "outcome": "max_rounds_reached",
+    "acceptance": false,
+    "round_display": "2/2"
+  },
+  "procedural_memory": {
+    "approval": "explicitly authorized by user and performed through UI",
+    "candidate": "a4c1e994d837473fada8246929e61d7b",
+    "record": "b2105cd4d9674d6f90026991ecd1baad",
+    "scope": "agent:Devon [QE]",
+    "cold_run": "memretro2",
+    "prior_history": false,
+    "context": false,
+    "skills": [],
+    "tools": [
+      "memory_server",
+      "playwright"
+    ],
+    "snapshot_turns": 7,
+    "memory_recalled": true,
+    "observed_actions": [
+      "playwright__browser_navigate",
+      "playwright__browser_snapshot"
+    ],
+    "conclusion": "Reachability verified; game acceptance explicitly not claimed",
+    "duration_seconds": 14.4
+  },
+  "resume": {
+    "original_run": "84874281",
+    "first_new_run": "2f8b92c1",
+    "second_delivery": "queued_launching_process",
+    "second_message": "877c57c3",
+    "new_qe_runs": 1,
+    "directives_delivered": 2
+  },
+  "cost": {
+    "checkpoint": "resume-single-consumer-v1",
+    "llm_calls": 11,
+    "input_tokens": 550372,
+    "output_tokens": 1275,
+    "estimated_cost": 0.97332,
+    "pricing_source": "fallback",
+    "invoice_verified": false,
+    "matched_ab": false
+  },
+  "tests": {
+    "frontend_unit": 279,
+    "meeting_desktop_mobile_e2e": 6,
+    "spawn_runtime": 125,
+    "core_agent_llm": 1197,
+    "core_existing_xfail": 1,
+    "backend_regression": 190,
+    "memory_e2e": 9,
+    "team_skill_template": 62,
+    "compaction_context": 92
+  },
+  "limitations": [
+    "No claim that all game quality gates are accepted",
+    "Native Ladybug SIGSEGV internal trigger unproven; worker isolation/fallback/recovery tested",
+    "Candidate Ladybug0.21.2 used only in private live experiment, dependency remains0.17.1",
+    "Structured automatic retrospective checkpoint lifecycle remains open",
+    "No end-to-end matched AB token-saving claim",
+    "Other procedure candidates remain pending"
+  ]
+}

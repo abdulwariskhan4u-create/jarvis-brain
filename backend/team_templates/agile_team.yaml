@@ -65,10 +65,10 @@ roles:
       3. **Select team** — choose roles (see Resource Selection)
 
       ### Phase 2: Kickoff
-      4. **Create kickoff meeting** — `create_meeting(max_rounds=6)` with:
-         - **OBJECTIVE** (1 sentence MAX): the goal/decision expected, e.g. "Kick off Sprint 1 backlog for jarvis improvements"
-         - **agenda** (body): project context, Jira link, role assignments, deliverables, DoD
-         - ⚠️ Do NOT put role assignments or context in the OBJECTIVE field — keep it short!
+      4. **Create kickoff meeting** — `create_meeting(max_rounds=3)` with:
+         - `agenda`: short decision title (max 120 characters).
+         - `description`: project context, Jira links, roles, deliverables and DoD.
+         - Use the actual tool schema; there is no `objective` argument.
       5. **Spawn team** — `spawn_team_members(roles="ba,dev,qe", first_task="...")`
          - Include meeting_id + Jira link in `first_task` so members have everything they need
          - ⚠️ Do NOT send a separate email after spawning — `first_task` already delivers the assignment!
@@ -89,11 +89,13 @@ roles:
       13. BA verifies requirements, QE confirms tests
       14. Only after VERDICT: PASS → transition Jira to Done, report to stakeholder
 
+      15. After an accepted milestone or significant failure/rework, read `retrospective`; run a focused retro with affected owners, record actions on Jira and propose owner-scoped lessons via memory_server. Verify approved lessons are recalled and applied on the next related task. Idle alone does not trigger a retro or acceptance.
+
       ## Meeting Rules
-      - OBJECTIVE = 1 short sentence (goal/decision). Context goes in agenda body, NOT in objective.
+      - `agenda` is the short title; context goes in `description`.
       - Meetings = DECISIONS, not work. Keep SHORT (2-3 rounds kickoff, 3-4 review)
       - End with `[DECISION] VERDICT: PASS — <summary>. Next actions: <list>`
-      - Use `max_rounds=6` for kickoff to allow all members to acknowledge
+      - Use `max_rounds=3` for kickoff; every participant has a turn each round.
 
       ## Resource Selection
       - Bug fix: Dev + QE
@@ -115,6 +117,7 @@ roles:
         team-communication,
         jarvis-knowledge,
         self-audit-tools,
+        retrospective,
       ]
     servers:
       [
@@ -169,7 +172,7 @@ roles:
       - Long-form analysis = Confluence page
       - DO NOT write standalone .md files to workspace as final deliverables
 
-    skills: [ba-workflow, team-roster, team-communication, jarvis-knowledge, self-audit-tools]
+    skills: [ba-workflow, team-roster, team-communication, jarvis-knowledge, self-audit-tools, retrospective]
     servers:
       [
         memory_server,
@@ -224,7 +227,7 @@ roles:
       - Architecture comparison = Confluence page
 
     skills:
-      [software-architecture, team-roster, team-communication, jarvis-knowledge, self-audit-tools]
+      [software-architecture, team-roster, team-communication, jarvis-knowledge, self-audit-tools, retrospective]
     servers:
       [
         memory_server,
@@ -302,6 +305,7 @@ roles:
         jarvis-knowledge,
         jarvis-infra,
         self-audit-tools,
+        retrospective,
       ]
     servers:
       [
@@ -354,7 +358,7 @@ roles:
       - Component specifications for Dev (spacing, responsive notes)
       - Screenshot of completed design (via figma_read screenshot)
 
-    skills: [figma-designer, team-roster, team-communication, self-audit-tools]
+    skills: [figma-designer, team-roster, team-communication, self-audit-tools, retrospective]
     servers:
       [memory_server, model_selection, plugin_management, filesystem, meeting_room, email, github, mcp-atlassian, figma-ui-mcp]
     server_overrides:
@@ -414,6 +418,7 @@ roles:
         team-communication,
         jarvis-knowledge,
         self-audit-tools,
+        retrospective,
       ]
     servers:
       [
@@ -470,6 +475,7 @@ roles:
         jarvis-knowledge,
         jarvis-infra,
         self-audit-tools,
+        retrospective,
       ]
     servers:
       [

@@ -289,8 +289,13 @@ class MemoryIndexWorker:
                 if sum(stats.values()) >= self.BATCH_LIMIT:
                     continue                           # full batch → backlog → keep draining
                 try:
-                    await asyncio.wait_for(self._wake.wait(),
-                                           timeout=self._sleep_delay(now=time.time()))
+                    delay = await asyncio.to_thread(self._sleep_delay, now=time.time())
+                except Exception:
+                    logger.warning("[MEMORY] Retry deadline unavailable; worker remains active",
+                                   exc_info=True)
+                    delay = self.DEGRADED_DEFER_S
+                try:
+                    await asyncio.wait_for(self._wake.wait(), timeout=delay)
                 except asyncio.TimeoutError:
                     pass                               # deadline/watchdog → re-drain
         finally:

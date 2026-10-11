@@ -400,7 +400,12 @@ def fire_slow_extraction_from_history(agent_name: str, history) -> None:
 
         async def _bg():
             try:
-                await run_slow_extraction(owner, snippet, cfg)
+                import os
+                if os.environ.get("TEAM_MY_NAME"):
+                    from services.memory.spawn_hooks import capture_segment
+                    await capture_segment(owner, snippet, "slow")
+                else:
+                    await run_slow_extraction(owner, snippet, cfg)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("[MEMORY] slow extraction failed: %s", exc)
         asyncio.create_task(_bg())

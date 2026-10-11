@@ -333,3 +333,13 @@ async def test_real_scoped_wake_for_same_name_pm_in_two_teams(tmp_path, monkeypa
     finally:
         await second.stop()
         await first.stop()
+
+
+def test_find_teams_recovers_partial_query_and_latest_revision(teams):
+    work.bind_team("team-a", "chat-1")
+    work.bind_team("team-b", "chat-2")
+    revision = work.create_revision("team-a", "chat-1", "Build offline game", source_refs=["SCRUM-69"])
+    found = work.find_teams("ongoing game Mac acceptance")
+    assert [row["session_id"] for row in found] == ["team-a"]
+    assert found[0]["latest_change"] == "Build offline game"
+    assert found[0]["source_refs"] == ["SCRUM-69"]

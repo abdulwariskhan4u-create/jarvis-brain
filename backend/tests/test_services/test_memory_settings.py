@@ -76,8 +76,10 @@ def test_recall_gate_and_hops_round_trip_and_validation(fake_cfg):
     # range validation
     with pytest.raises(ValueError, match="recall_min_similarity"):
         ms.update_memory_settings({"recall_min_similarity": 1.5})
+    ms.update_memory_settings({"graph_max_hops": 0})
+    assert ms.get_memory_settings().graph_max_hops == 0  # Explicit graph off-switch.
     with pytest.raises(ValueError, match="graph_max_hops"):
-        ms.update_memory_settings({"graph_max_hops": 0})
+        ms.update_memory_settings({"graph_max_hops": -1})
     with pytest.raises(ValueError, match="graph_max_hops"):
         ms.update_memory_settings({"graph_max_hops": 5})
 

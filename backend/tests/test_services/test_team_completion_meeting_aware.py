@@ -961,3 +961,40 @@ def test_cycle_dedupe_skips_rows_with_empty_agent_name(env_db, monkeypatch):
     bridge._on_member_state_event("pm1")
     state = bridge._load_cycle_state("sF")
     assert state["team_open"] is True
+
+
+def test_idle_cycle_is_not_reported_as_project_completed(env_db):
+    from unittest.mock import MagicMock, patch
+    from services.spawn_progress_bridge import SpawnProgressBridge
+    captured = {}
+    class Notification:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            self.id = 1
+    bridge = SpawnProgressBridge(progress_manager=MagicMock(), registry_db=None)
+    with patch("core.database.NotificationModel", Notification), \
+         patch("core.database.get_db_session", return_value=MagicMock()), \
+         patch("services.cron_scheduler.scheduler_stream_manager", MagicMock()):
+        bridge._create_team_notification("game", "PM", "Acceptance pending", [
+            {"agent_name": "PM", "status": "idle"}, {"agent_name": "Dev", "status": "idle"}])
+    assert "completed" not in captured["title"]
+    assert "idle" in captured["title"]
+
+
+@pytest.mark.parametrize('status', ['cancelled', 'timeout', 'killed'])
+def test_terminal_failure_never_labelled_idle(env_db, status):
+    from unittest.mock import MagicMock, patch
+    from services.spawn_progress_bridge import SpawnProgressBridge
+    captured = {}
+    class Notification:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            self.id = 1
+    bridge = SpawnProgressBridge(progress_manager=MagicMock(), registry_db=None)
+    with patch('core.database.NotificationModel', Notification), \
+         patch('core.database.get_db_session', return_value=MagicMock()), \
+         patch('services.cron_scheduler.scheduler_stream_manager', MagicMock()):
+        bridge._create_team_notification('game', 'PM', 'Incomplete', [
+            {'agent_name': 'PM', 'status': status}])
+    assert 'needs attention' in captured['title']
+    assert 'idle' not in captured['title']

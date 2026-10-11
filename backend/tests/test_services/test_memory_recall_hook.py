@@ -199,9 +199,8 @@ async def test_change_gate_survives_restart_no_duplicate(wired):
     assert len(_injected(a2)) == 1               # NO duplicate block
 
 
-async def test_query_falls_back_to_history_when_delta_has_no_text(wired):
-    """H4: a post-tool turn whose delta carries no user text still recalls,
-    using the last real user message from history."""
+async def test_empty_delta_does_not_repeat_history_recall(wired):
+    """Post-tool steps without new user direction retain existing recall."""
     agent = _Agent()
     agent.message_history = [_user("what is my job?")]
     captured = {}
@@ -214,8 +213,8 @@ async def test_query_falls_back_to_history_when_delta_has_no_text(wired):
     delta = []                                        # empty delta (e.g. tool turn)
     await hooks.before_llm_call(_Runner(agent), delta)
     agent.message_history.extend(delta)               # framework merges delta after
-    assert captured.get("q") == "what is my job?"
-    assert len(_injected(agent)) == 1
+    assert captured == {}
+    assert len(_injected(agent)) == 0
 
 
 # ── Lane provenance: durable channel → display exposure (persistent, no token) ──
@@ -266,3 +265,25 @@ def test_recall_lanes_channel_survives_to_display(tmp_path):
         {"rrf": 0.03, "rerank": 0.88, "conf": 0.9, "authority": "user_confirmed"},
         {"rrf": 0.016, "rerank": 0.21, "conf": 0.6, "authority": "inferred"},
     ]
+
+
+async def test_tool_result_step_does_not_repeat_recall_or_capture(wired):
+    from unittest.mock import AsyncMock
+    from mcp.types import CallToolResult
+    cfg = _settings()
+    cfg.auto_capture_preferences = True
+    cfg.extract_every_n = 1
+    wired.setattr('services.memory.settings.get_memory_settings', lambda: cfg)
+    retrieve, extract = AsyncMock(return_value=[]), AsyncMock()
+    wired.setattr(rh, '_retrieve', retrieve)
+    wired.setattr(rh, '_run_extraction', extract)
+    agent = _Agent()
+    agent.message_history = [_user('Build offline game')]
+    result = _user('Tool-generated status must not become user direction')
+    result.tool_results = {'call': CallToolResult(content=[], isError=False)}
+    await rh.create_memory_retrieval_hooks().before_llm_call(_Runner(agent), [result])
+    import asyncio
+    await asyncio.sleep(0)
+    retrieve.assert_not_awaited()
+    extract.assert_not_awaited()
+    assert getattr(agent, '_jarvis_extract_turns', 0) == 0

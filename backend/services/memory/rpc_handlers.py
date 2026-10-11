@@ -196,7 +196,11 @@ async def procedure_propose(*, agent_name: str, title: str, steps: str) -> dict:
         db.close()
 
 
+from services.memory.spawn_handlers import capture as spawn_capture, recall as spawn_recall
+
 _METHODS = {
+    "memory.capture": spawn_capture,
+    "memory.recall": spawn_recall,
     "memory.search": memory_search,
     "memory.fetch": memory_fetch,
     "memory.remember": memory_remember,

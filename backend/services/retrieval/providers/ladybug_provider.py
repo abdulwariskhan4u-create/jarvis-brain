@@ -7,6 +7,8 @@ so the orchestrator degrades to FTS-only. The sole dense/graph retrieval backend
 """
 from __future__ import annotations
 
+import asyncio
+
 from services.indexing.embedding_provider import EmbeddingProvider
 from services.indexing.ladybug_store import LadybugStore
 from services.retrieval.contracts import (
@@ -42,17 +44,21 @@ class LadybugProvider(RetrievalProvider):
     async def search(self, request: RetrievalRequest, *, limit: int) -> list[Evidence]:
         if not self.is_available():
             return []
-        qvec = self.embedding.embed_query(request.query)
-        hits = self.store.vector_search(
+        qvec = await asyncio.to_thread(self.embedding.embed_query, request.query)
+        hits = await asyncio.to_thread(self.store.vector_search,
             owner=request.owner_agent_name, query_embedding=qvec, limit=limit,
             max_distance=self.max_distance)
+        if not hits and not await asyncio.to_thread(self.store.probe_index_healthy):
+            # A broken HNSW projection is a lane failure, not evidence that
+            # the request is off-topic. The orchestrator must retain FTS hits.
+            raise RuntimeError("Native vector index is not searchable; retain SQLite/FTS recall")
         # GraphRAG, QUERY-ENTITY-ANCHORED (not blind seed co-occurrence): expand
         # only from entities the query actually names, skipping ubiquitous hub
         # entities. This stops the user's own entity — which co-occurs with nearly
         # every personal fact — from dragging tangential memories into unrelated
         # queries (the 2026-06-22 "AI-career memory in a baby-age query" bug).
         # ``graph_max_hops <= 0`` disables the lane entirely (off-switch).
-        linked = ([] if self.max_hops <= 0 else self.store.query_anchored_memories(
+        linked = ([] if self.max_hops <= 0 else await asyncio.to_thread(self.store.query_anchored_memories,
             owner=request.owner_agent_name, query=request.query, limit=limit,
             hub_max_df=self.hub_max_df))
 

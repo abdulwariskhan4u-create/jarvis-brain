@@ -18,6 +18,7 @@ class CatalogUnavailable(RuntimeError):
 _LOCK = threading.Lock()
 _CACHE: tuple[str, float, frozenset[str]] | None = None
 _PROBE_CACHE: dict[tuple[str, str], float] = {}
+_CONTEXT_CACHE: dict[tuple[str, str], tuple[float, int | None]] = {}
 _SECRETS = Path(__file__).resolve().parent.parent / "fastagent.secrets.yaml"
 
 
@@ -82,3 +83,41 @@ def probe_model(model_id: str) -> None:
         raise CatalogUnavailable(f"model {model_id!r} failed a bounded inference probe") from exc
     with _LOCK:
         _PROBE_CACHE[cache_key] = time.monotonic()
+
+
+def context_window(model_id: str, refresh: bool = False) -> int | None:
+    """Gateway-advertised limit for aliases. Never infer from a pricing rule.
+
+    Network refresh is explicit and runs off the event loop from the compaction
+    hook. Cache-only reads also serve synchronous planning/UI paths.
+    """
+    try:
+        base_url, api_key = _gateway()
+    except (CatalogUnavailable, OSError, ValueError):
+        return None
+    key = (base_url + ":" + hashlib.sha256(api_key.encode()).hexdigest(), model_id)
+    now = time.monotonic()
+    with _LOCK:
+        cached = _CONTEXT_CACHE.get(key)
+        if cached and (not refresh or now - cached[0] < 300):
+            return cached[1]
+    if not refresh:
+        return None
+    value = None
+    try:
+        response = httpx.get(f"{base_url}/models",
+                            headers={"Authorization": f"Bearer {api_key}"}, timeout=5.0)
+        response.raise_for_status()
+        for item in response.json().get("data", []):
+            if isinstance(item, dict) and item.get("id") == model_id:
+                for field in ("context_length", "context_window", "max_model_len"):
+                    candidate = item.get(field)
+                    if isinstance(candidate, int) and not isinstance(candidate, bool) and candidate > 0:
+                        value = candidate
+                        break
+                break
+    except (httpx.HTTPError, ValueError, TypeError):
+        pass  # Unknown stays unknown; the existing compaction warning surfaces it.
+    with _LOCK:
+        _CONTEXT_CACHE[key] = (now, value)
+    return value

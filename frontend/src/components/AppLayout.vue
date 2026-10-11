@@ -49,7 +49,10 @@ const isAudioPlaying = computed(() => audioPlayerStore.isMiniPlayerVisible)
 
 const store = useAgentsStore()
 const { status, reconnect } = useRealtimeStream({
-  onConnected: fetchUnreadCount,
+  onConnected: () => {
+    store.activityConnected()
+    fetchUnreadCount()
+  },
   // Context-compaction lifecycle → non-blocking toasts. The store case
   // in agents.js owns the per-agent state; this only surfaces visible
   // feedback so the user knows compaction happened (and saved tokens)

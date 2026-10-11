@@ -16,6 +16,7 @@
  */
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import MarkdownRenderer from '../MarkdownRenderer.vue'
+import { meetingOutcome, meetingRound } from '../../utils/meetingPresentation.js'
 import { normalizeTs } from '../../utils/timeFormat.js'
 import { useLang } from '../../composables/useLang'
 
@@ -125,6 +126,9 @@ const connection = computed(() => {
   return { label: t('meetings.connDisconnectedCaps'), color: 'var(--danger)', live: false }
 })
 
+const outcome = computed(() => meetingOutcome(props.meetingState?.outcome ?? props.meeting?.outcome))
+const round = computed(() => meetingRound(props.meeting || {}, props.meetingState || {}))
+
 // ── Auto-scroll ─────────────────────────────────────────────────────────
 const scrollRef = ref(null)
 const autoScroll = ref(true)
@@ -219,7 +223,7 @@ function formatTimestamp(ts) {
     <!-- Header row 2: round counter + agenda strip pills + participants -->
     <div class="tp-meta">
       <span class="tp-pill">
-        {{ t('meetings.roundLower') }} {{ meetingState.current_round || meeting?.current_round || 1 }}<span v-if="meeting?.max_rounds"> / {{ meeting.max_rounds }}</span>
+        {{ t('meetings.roundLower') }} {{ round }}<span v-if="meeting?.max_rounds"> / {{ meeting.max_rounds }}</span>
       </span>
       <span class="tp-pill">{{ t('meetings.msgsCount', { n: transcript.length }) }}</span>
       <span v-if="currentSpeaker && !meetingState.ended" class="tp-pill speak-pill" :class="{ stalled: isStalled }">
@@ -227,8 +231,8 @@ function formatTimestamp(ts) {
         <span class="tp-pill-age">· {{ stallAgeText }}</span>
         <span v-if="isStalled" class="tp-pill-warn">⚠ {{ t('meetings.stalled') }}</span>
       </span>
-      <span v-if="meetingState.ended && meetingState.outcome" class="tp-pill ended-pill">
-        ✓ {{ meetingState.outcome }}
+      <span v-if="meetingState.ended && meetingState.outcome" :class="['tp-pill', 'ended-pill', outcome.tone]">
+        {{ outcome.icon }} {{ t(outcome.labelKey) }}
       </span>
 
       <!-- Participant strip -->
@@ -485,12 +489,14 @@ function formatTimestamp(ts) {
 .tp-pill-age { opacity: 0.75; font-weight: 400; }
 .tp-pill-warn { margin-left: 2px; }
 .tp-pill.ended-pill {
-  background: var(--success-bg);
-  color: var(--success);
-  border-color: rgba(16, 185, 129, 0.30);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+
+.tp-pill.ended-pill.success { color: var(--success); background: var(--success-bg); border-color: var(--success); }
+.tp-pill.ended-pill.warning { color: var(--warning); border-color: var(--warning); }
+.tp-pill.ended-pill.danger { color: var(--danger); border-color: var(--danger); }
+.tp-pill.ended-pill.neutral { color: var(--text-muted); }
 
 .tp-participants {
   display: flex;

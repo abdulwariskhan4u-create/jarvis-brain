@@ -81,3 +81,16 @@ async def test_degrades_when_embedding_unavailable(store):
     p = LadybugProvider(store, _Emb(available=False))
     assert p.is_available() is False
     assert await p.search(_req(), limit=5) == []
+
+
+async def test_dead_index_is_failure_not_off_topic_empty_result(store, monkeypatch):
+    monkeypatch.setattr(store, "vector_search", lambda **kwargs: [])
+    monkeypatch.setattr(store, "probe_index_healthy", lambda: False)
+    provider = LadybugProvider(store, _Emb())
+    with pytest.raises(RuntimeError, match="index is not searchable"):
+        await provider.search(_req(), limit=5)
+
+
+async def test_healthy_off_topic_query_remains_empty(store):
+    provider = LadybugProvider(store, _Emb(axis=99), max_distance=0.1, max_hops=0)
+    assert await provider.search(_req(), limit=5) == []

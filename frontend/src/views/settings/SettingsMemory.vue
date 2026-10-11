@@ -48,6 +48,24 @@ const config = ref(null)
 const draft = ref(null)
 const apiKeyInput = ref('')   // write-only; never populated from server
 const indexStatus = ref(null) // dense (LadybugDB) + embedding health + index counts
+const repairing = ref(false)
+const denseHealthy = computed(() => indexStatus.value?.dense?.reachable
+  && indexStatus.value?.dense?.embeddings && indexStatus.value?.dense?.searchable === true)
+
+async function repairIndex() {
+  if (repairing.value) return
+  repairing.value = true
+  error.value = ''
+  try {
+    await apiFetch('/api/memory/repair', { method: 'POST' })
+    indexStatus.value = await apiFetch('/api/memory/index-status')
+    if (!denseHealthy.value) error.value = t('memory.denseBroken')
+  } catch (err) {
+    error.value = _friendly(err)
+  } finally {
+    repairing.value = false
+  }
+}
 
 const MODES = ['economical', 'balanced', 'deep']
 const POLICIES = ['manual', 'auto_low_risk']
@@ -58,7 +76,7 @@ const NUMBER_FIELDS = [
   { key: 'retention_episodic_days', labelKey: 'settings.memory.retentionEpisodic', min: 1, max: 3650, step: 1 },
   { key: 'retention_retrieval_runs_days', labelKey: 'settings.memory.retentionRuns', min: 1, max: 365, step: 1 },
   { key: 'recall_min_similarity', labelKey: 'settings.memory.recallMinSim', min: 0, max: 1, step: 0.01 },
-  { key: 'graph_max_hops', labelKey: 'settings.memory.graphMaxHops', min: 1, max: 3, step: 1 },
+  { key: 'graph_max_hops', labelKey: 'settings.memory.graphMaxHops', min: 0, max: 3, step: 1 },
   { key: 'rerank_top_k', labelKey: 'settings.memory.rerankTopK', min: 1, max: 100, step: 1 },
   { key: 'rerank_min_score', labelKey: 'settings.memory.rerankMinScore', min: 0, max: 1, step: 0.001 },
   { key: 'hub_max_df', labelKey: 'settings.memory.hubMaxDf', min: 0.05, max: 1, step: 0.05 },
@@ -153,9 +171,10 @@ onMounted(load)
 
     <div v-if="indexStatus" class="status-card">
       <div class="status-line">
-        <span class="dot" :class="(indexStatus.dense?.reachable && indexStatus.dense?.embeddings) ? 'ok' : 'down'"></span>
+        <span class="dot" :class="denseHealthy ? 'ok' : 'down'"></span>
         <strong>{{ t('settings.memory.dense') }}</strong>
-        <span v-if="indexStatus.dense?.reachable && indexStatus.dense?.embeddings" class="muted">
+        <span v-if="indexStatus.dense?.broken" role="alert" class="warn">{{ t('memory.denseBroken') }}</span>
+        <span v-else-if="denseHealthy" class="muted">
           {{ t('settings.memory.denseConnected') }} · {{ t('settings.memory.densePoints', { points: indexStatus.dense.points ?? 0 }) }}
         </span>
         <span v-else-if="indexStatus.dense && !indexStatus.dense.embeddings" class="warn">
@@ -164,6 +183,11 @@ onMounted(load)
         <span v-else class="warn">
           {{ t('settings.memory.denseDown') }}
         </span>
+      </div>
+      <div v-if="indexStatus.dense?.broken" class="status-line">
+        <button class="btn" :disabled="repairing" @click="repairIndex">
+          {{ repairing ? t('memory.repairing') : t('memory.restoreIndex') }}
+        </button>
       </div>
       <div class="status-line muted" v-if="indexStatus.outbox">
         {{ t('settings.memory.indexQueue') }}:
@@ -236,7 +260,7 @@ onMounted(load)
       <div class="row">
         <div class="row-info"><h3>{{ t(NUMBER_FIELDS[5].labelKey) }}</h3>
           <p class="hint">{{ t('settings.memory.graphMaxHopsHint') }}</p></div>
-        <input v-model="draft.graph_max_hops" class="num-input" type="number" min="1" max="3" step="1" />
+        <input v-model="draft.graph_max_hops" class="num-input" type="number" min="0" max="3" step="1" />
       </div>
       <div class="row">
         <div class="row-info"><h3>{{ t(NUMBER_FIELDS[6].labelKey) }}</h3></div>

@@ -109,26 +109,37 @@ def find_teams(query: str = "", limit: int = 20) -> list[dict]:
     """Find team sessions across the single user's conversations on demand."""
     if limit < 1 or limit > 50:
         raise TeamWorkError("limit must be between 1 and 50")
-    terms = query.strip()[:100].split()
+    terms = list(dict.fromkeys(query.strip()[:100].split()))
     clauses = []
     params: list[str | int] = []
     for term in terms:
         escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         pattern = f"%{escaped}%"
-        clauses.append("(b.team_name LIKE ? ESCAPE '\\' OR b.project_brief LIKE ? ESCAPE '\\')")
-        params.extend((pattern, pattern))
-    where = " AND ".join(clauses) if clauses else "1=1"
+        clauses.append("(b.team_name LIKE ? ESCAPE '\\' OR "
+                       "b.project_brief LIKE ? ESCAPE '\\' OR "
+                       "COALESCE(r.change_text, '') LIKE ? ESCAPE '\\')")
+        params.extend((pattern, pattern, pattern))
+    where = " OR ".join(clauses) if clauses else "1=1"
+    score = " + ".join(f"CASE WHEN {clause} THEN 1 ELSE 0 END" for clause in clauses) or "0"
     with _database() as conn:
         rows = conn.execute(
             "SELECT b.session_id, b.conversation_id, b.team_name, "
             "substr(b.project_brief, 1, 240) AS project_brief, b.created_at, "
-            "COALESCE(MAX(r.revision), 0) AS revision "
+            "COALESCE(r.revision, 0) AS revision, "
+            "substr(r.change_text, 1, 480) AS latest_change, r.source_refs_json, "
+            f"({score}) AS matched_terms "
             "FROM team_work_bindings b LEFT JOIN team_requirement_revisions r "
-            "ON r.session_id=b.session_id "
-            f"WHERE {where} GROUP BY b.session_id ORDER BY b.created_at DESC LIMIT ?",
-            (*params, limit),
+            "ON r.id=(SELECT id FROM team_requirement_revisions "
+            "WHERE session_id=b.session_id ORDER BY revision DESC LIMIT 1) "
+            f"WHERE {where} ORDER BY matched_terms DESC, b.created_at DESC LIMIT ?",
+            (*params, *params, limit),
         ).fetchall()
-    return [dict(row) for row in rows]
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["source_refs"] = json.loads(item.pop("source_refs_json") or "[]")
+        result.append(item)
+    return result
 
 
 def get_binding(session_id: str) -> dict:

@@ -178,7 +178,7 @@ def _persist_and_broadcast_token_usage(
         return
     
     try:
-        from services.pricing import estimate_cost
+        from services.pricing import estimate_cost, pricing_source
         from core.database import get_db, TokenUsageRecord
         
         model = tokens.get("model", "unknown")
@@ -206,6 +206,7 @@ def _persist_and_broadcast_token_usage(
                 run_id=run_id,
                 category=category,
                 model=model,
+                pricing_source=pricing_source(model),
                 input_tokens=input_t,
                 output_tokens=output_t,
                 total_tokens=total_t,
@@ -218,6 +219,7 @@ def _persist_and_broadcast_token_usage(
             db.add(record)
             try:
                 db.commit()
+                usage_id, created_at = record.id, record.created_at
             except Exception as exc:
                 from sqlalchemy.exc import IntegrityError
                 db.rollback()
@@ -238,7 +240,10 @@ def _persist_and_broadcast_token_usage(
             "run_id": run_id,
             "timestamp": time.time(),
             "data": {
+                "usage_id": usage_id,
+                "created_at": created_at,
                 "model": model,
+                "pricing_source": pricing_source(model),
                 "input_tokens": input_t,
                 "output_tokens": output_t,
                 "total_tokens": total_t,

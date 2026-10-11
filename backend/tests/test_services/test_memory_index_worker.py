@@ -366,3 +366,33 @@ def test_migrate_on_embedding_change(monkeypatch):
     assert r == {"migrated": False, "reason": "deps_missing"}
     assert wiped == []                                   # did NOT wipe a healthy graph
     assert store[("memory", "indexed_embedding_revision")] == "BAAI/bge-m3"
+
+
+async def test_deadline_lookup_failure_does_not_kill_event_worker(monkeypatch):
+    import asyncio
+    from services.indexing.memory_index_worker import MemoryIndexWorker
+    from services.indexing import outbox_service as ob
+    worker = MemoryIndexWorker()
+    first = asyncio.Event()
+    event_loop = asyncio.get_running_loop()
+    recovered = asyncio.Event()
+    calls = []
+    async def process(**kwargs):
+        calls.append(1)
+        if len(calls) > 1:
+            recovered.set()
+        return {}
+    def deadline(**kwargs):
+        event_loop.call_soon_threadsafe(first.set)
+        raise RuntimeError('temporary database pool exhaustion')
+    monkeypatch.setattr(worker, 'process_pending', process)
+    monkeypatch.setattr(worker, '_sleep_delay', deadline)
+    task = asyncio.create_task(worker.run_loop())
+    try:
+        await asyncio.wait_for(first.wait(), 1)
+        assert not task.done()
+        ob.notify()
+        await asyncio.wait_for(recovered.wait(), 1)
+    finally:
+        worker.stop()
+        await task

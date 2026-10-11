@@ -95,3 +95,17 @@ def estimate_cost(
     )
     
     return round(cost, 8)
+
+
+def pricing_source(model_name: str) -> str:
+    """Provenance of the configured estimate, never a billing verification."""
+    if not model_name:
+        return "unavailable"
+    for rule in _pricing_rules:
+        try:
+            pattern = rule.get("pattern", "")
+            if re.search(pattern, model_name, re.IGNORECASE):
+                return "fallback" if pattern in {".*", "^.*$"} else "configured"
+        except re.error:
+            continue
+    return "unavailable"

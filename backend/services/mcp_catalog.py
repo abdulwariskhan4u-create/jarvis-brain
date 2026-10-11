@@ -407,8 +407,10 @@ def seed_from_yaml(
             )
             db.add(row)
             inserted += 1
+        from services.mcp_builtin_migrations import migrate_launchers
+        migrated = migrate_launchers(db, declared, now)
         db.commit()
-    logger.info("[mcp.seed] inserted=%d skipped=%d", inserted, skipped)
+    logger.info("[mcp.seed] inserted=%d skipped=%d migrated=%d", inserted, skipped, migrated)
     return {"inserted": inserted, "skipped": skipped}
 
 

@@ -19,10 +19,8 @@ When you see a `🔔 MEETING INVITE` in your messages:
 
 ## Protocol
 
-### Step 1: Join
-```
-join_meeting(meeting_id="<meeting_id>")
-```
+### Step 1: Check the invitation
+Participants are auto-joined by `create_meeting`. Use the meeting ID in the invitation; do not create another kickoff. Call `join_meeting` only when joining later and not already on the participant list.
 
 ### Step 2: Wait for Your Turn
 ```
@@ -34,7 +32,7 @@ wait_for_my_turn(meeting_id="<meeting_id>")
 2. Read any relevant workspace files if needed
 3. **Speak** or **Skip**:
    ```
-   speak(meeting_id="<meeting_id>", body="...")
+   speak(meeting_id="<meeting_id>", message="...")
    skip_turn(meeting_id="<meeting_id>")
    ```
 
@@ -45,14 +43,14 @@ After speaking, call `wait_for_my_turn` again:
 
 ### Step 5: After Meeting Ends — Work Independently
 
-When meeting ends (`[DECISION] VERDICT: PASS`):
+When the tool reports the meeting has ended:
 1. **Stop calling `wait_for_my_turn`**
-2. **Start immediately** based on what was agreed — don't wait for PM to re-assign
-3. Use `filesystem` tools to create deliverables
+2. Act on agreed decisions within your assignment. `max_rounds_reached`, failure or escalation is not acceptance; retain unresolved gates.
+3. Publish final tasks/docs in Jira/Confluence; workspace files are implementation artifacts or drafts.
 4. Use `send_email` to hand off to next person in dependency chain
 5. Request deliverables via `send_email(subject="[WAITING] ...")` — they'll be auto-delivered
 
-> **⚠️ IMPORTANT:** The meeting IS your task assignment. Start working immediately after VERDICT: PASS.
+Never speak as another participant. On `Not your turn`, use `wait_for_my_turn` rather than repeatedly querying status or attempting `speak`. A meeting verdict does not substitute for deliverable tests or human acceptance.
 
 ## Guidelines
 

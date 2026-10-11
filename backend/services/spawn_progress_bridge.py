@@ -216,7 +216,10 @@ class SpawnProgressBridge:
         # canonical source for those. We still broadcast lifecycle events
         # (started/idle/error/agent_paused/agent_resumed/...) and "thinking"
         # so the running-status pulse appears between turns.
-        if event_type_str not in {"tool_call", "tool_result", "response"}:
+        # Token calls are broadcast once, after persistence, with their row ID
+        # and pricing provenance. Broadcasting the raw child event as well
+        # doubles the monitor's call/token totals.
+        if event_type_str not in {"tool_call", "tool_result", "response", "token_usage"}:
             self._broadcast_activity(agent_name, event_type_str, data, event_data)
 
         # 4. Upsert spawn_records on lifecycle events
@@ -1181,7 +1184,7 @@ class SpawnProgressBridge:
             from services.cron_scheduler import scheduler_stream_manager
 
             total = len(members)
-            errors = sum(1 for m in members if m.get("status") == "error")
+            errors = sum(1 for m in members if m.get("status") in {"error", "timeout", "cancelled", "killed"})
 
             # Detect "idled mid-meeting" — flips the framing of this notification.
             member_names = {
@@ -1204,7 +1207,12 @@ class SpawnProgressBridge:
                     + self._format_active_meetings_warning(active_meetings)
                 )
             elif errors:
-                title = f"⚠️ Team {team_name} completed ({errors}/{total} errors)"
+                title = f"⚠️ Team {team_name} needs attention ({errors}/{total} unsuccessful)"
+                preview, content = self._compose_team_result_body(
+                    team_name=team_name, agent_name=agent_name, result=result,
+                )
+            elif any(member.get("status") != "completed" for member in members):
+                title = f"⏸ Team {team_name} is idle ({total} agents) — review progress"
                 preview, content = self._compose_team_result_body(
                     team_name=team_name, agent_name=agent_name, result=result,
                 )

@@ -1,59 +1,30 @@
 ---
 name: team-roster
-description: >
-  Team member roster, expertise, tools, and coordination guide.
-  Read this skill to know who to ask for help and what they can do.
+description: Discover actual team identities and runtime capabilities before delegating to an owner.
 ---
 
-# TEAM ROSTER
+# Team roster
 
-## Team Members & Capabilities
+Use the current session roster supplied at spawn/resume, or one `get_team_status` call when ownership is ambiguous. Names are generated per session; never address a static example name or reuse a name from another team. Reserved roles are not active members.
 
-| Agent | Role | Key Tools | Can Do |
-|-------|------|-----------|--------|
-| Linh - PM | Project Manager | email, agent_spawner, github, meeting_room | Spawn/manage team members, track progress, search GitHub issues/PRs, create meetings |
-| Hoa - BA | Business Analyst | email, github, scrapling, figma-ui-mcp, meeting_room | Research requirements, browse web for references, read GitHub code, review Figma designs |
-| Khang - SA | Solution Architect | email, github, scrapling, figma-ui-mcp, meeting_room | Design architecture, read/search GitHub repos, research tech via web, review Figma layouts |
-| Minh - Dev | Developer | email, **git**, github, scrapling, figma-ui-mcp, meeting_room | **Clone/pull/push code via git**, implement features, read GitHub PRs, browse API docs |
-| Trang - Designer | UI/UX Designer | email, **figma-ui-mcp**, meeting_room | **Create Figma designs** (pages, frames, components), design UI/UX flows, export assets |
-| Tuan - QE | QA Engineer | email, github, scrapling, figma-ui-mcp, meeting_room | Write/run tests, read GitHub code, verify against Figma designs, browse test references |
-| Duc - DSO | DevSecOps | email, **git**, github, scrapling, meeting_room | **Clone/pull/push code**, manage CI/CD pipelines, deploy, security review |
+## Choose the owner
 
-<important_capabilities>
-## Who can do what — delegate accordingly!
+| Role | Ownership |
+|------|-----------|
+| PM | Scope, selective staffing, decision meetings, delivery and acceptance gates |
+| BA | Requirements and acceptance criteria |
+| SA | Architecture, interfaces and implementation review |
+| Dev | Implementation within the authorized workspace |
+| Designer | Art/design system, visual and interaction specifications |
+| QE | Reproduction, tests and evidence against actual served build |
+| DSO | CI, deployment and security review within granted permissions |
 
-- **Need code in workspace?** → Ask **Minh - Dev** or **Duc - DSO** to `git clone` the repo
-- **Need a Figma design?** → Ask **Trang - Designer** to create it with `figma-ui-mcp`
-- **Need to read code on GitHub?** → **Linh - PM**, **Hoa - BA**, **Khang - SA**, **Minh - Dev**, **Tuan - QE**, **Duc - DSO** all have `github` tool
-- **Need web research?** → **Hoa - BA**, **Khang - SA**, **Minh - Dev**, **Tuan - QE**, **Duc - DSO** have `scrapling` tool
-- **Need to deploy/CI?** → Ask **Duc - DSO**
-</important_capabilities>
+A role does not establish tool access. Inspect exposed tools and current agent configuration before declaring a capability absent or requesting another installation. Missing local CLI dependencies do not prove an already-connected MCP is unavailable. Use a harmless scoped capability probe and report its exact outcome.
 
-<communication_rules>
-1. Use `send_email`: `send_email(to="Minh - Dev", body="...", subject="...")`
-2. Emails from teammates are **auto-delivered** — no need to poll
-3. Wait for dependency: `send_email(to="Agent", body="Send me [deliverable] when ready", subject="[WAITING] ...")`
-4. Check status: `check_teammate_status(agent_name="Hoa - BA")`
-5. DO NOT guess — ASK teammates when uncertain
-6. DO NOT resend a message you already sent
-7. ALWAYS use agent display name — not role key (use "Hoa - BA" not "ba")
-</communication_rules>
+## Coordinate without duplicate work
 
-<escalation_rules>
-Escalate to PM when:
-- Blocked more than 2 times by the same issue
-- Scope has changed from the original plan
-- Need a team member not yet in the team
-- Discovered a risk affecting the timeline
-</escalation_rules>
+Send actionable assignments to actual display names in this session. Include checkpoint, output, owner and dependency; do not broadcast when one owner is sufficient. Team messages and status events are delivered automatically; do not poll inbox or repeatedly ask for unchanged status.
 
-## Standard Workflow
+Do not reply or acknowledge FYI/no_reply messages. Report new evidence, blockers or deliverables once, linking the artifact instead of forwarding full histories. Escalate a repeated concrete failure to PM with the attempted action and exact error.
 
-```
-Linh - PM assigns → Hoa - BA writes BRD → Khang - SA reviews & designs
-→ Minh - Dev implements → Tuan - QE tests → Duc - DSO deploys
-→ Linh - PM wraps up
-```
-
-> **Note**: Not every project needs all 7 members.
-> PM decides which members participate based on scope.
+Idle means waiting, not completed. Resume a live member through its existing inbox; never start a second process for the same member. PM chooses affected participants for review/retro, and each owner proposes their own reusable lessons using the `retrospective` skill.
