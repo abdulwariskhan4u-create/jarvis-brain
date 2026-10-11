@@ -107,6 +107,7 @@ _EVENT_MAP = {
     "lifecycle_completed": ("spawn_lifecycle", "✅ {agent_name} completed"),
     "lifecycle_error": ("spawn_lifecycle", "❌ {agent_name} lifecycle error"),
     "lifecycle_cancelled": ("spawn_lifecycle", "🚫 {agent_name} cancelled"),
+    "cancelled": ("spawn_lifecycle", "🚫 {agent_name} cancelled"),
     "lifecycle_pre_cleanup": ("spawn_lifecycle", "🧹 {agent_name} cleaning up..."),
     "lifecycle_after_cleanup": ("agent_removed", "🗑️ {agent_name} removed"),
     # Pause/Resume events (from PauseSignalHandler in subprocess).
@@ -176,6 +177,7 @@ class SpawnProgressBridge:
         event_type_str = event_data.get("event_type", "")
         data = event_data.get("data", {})
         run_id = event_data.get("run_id") or data.get("run_id")
+        record = {}
 
         # Some subprocess lifecycle events report a role key (e.g. "pm")
         # instead of the display name. The registered spawn configuration is
@@ -209,6 +211,14 @@ class SpawnProgressBridge:
         # Kept for the legacy AgentDetail "Activity" tab and audit log; no
         # current monitor UI reads it as primary source.
         self._persist_activity(agent_name, event_type_str, data, event_data)
+        if record.get("status") == "cancelled" and event_type_str in {
+            "started", "idle", "resumed", "error", "result", "thinking",
+            "agent_completed", "agent_paused", "agent_resumed",
+            "lifecycle_completed", "lifecycle_error", "lifecycle_process_started",
+        }:
+            return  # Keep the audit trail, but never revive a cancelled run.
+        if event_type_str == "lifecycle_cancelled":
+            event_type_str = "cancelled"
 
         # 3. Broadcast via ActivityStreamManager (global SSE for monitoring).
         # tool_call / tool_result / response are intentionally NOT broadcast —

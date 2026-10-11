@@ -186,6 +186,7 @@ export const useAgentsStore = defineStore('agents', () => {
         // to running.
         upsertAgentPreservingPauseCycle(agent_name, {
           session_id: eventSessionId,
+          ...(event.run_id ? { run_id: event.run_id } : {}),
           status: 'running',
           lastAction: { message: event.message, timestamp: event.timestamp },
         })
@@ -229,6 +230,19 @@ export const useAgentsStore = defineStore('agents', () => {
           lastAction: { message: event.message || 'Error', timestamp: event.timestamp },
         })
         break
+
+      case 'cancelled': {
+        const current = findAgentByIdentity([...agents.value.values()], agent_name, eventSessionId)
+        // A cancel acknowledgement for the previous incarnation may arrive
+        // after a new run starts; it must not cancel that new run in the UI.
+        if (event.run_id && current?.run_id && event.run_id !== current.run_id) break
+        upsertAgent(agent_name, {
+          session_id: eventSessionId,
+          status: 'cancelled',
+          lastAction: { message: event.message || 'Cancelled', timestamp: event.timestamp },
+        })
+        break
+      }
 
       case 'idle':
         upsertAgentPreservingPauseCycle(agent_name, {

@@ -244,6 +244,8 @@ test('statusLabel covers every pause-cycle state', () => {
 })
 
 test('statusLabel covers spawn lifecycle statuses', () => {
+  assert.equal(statusLabel('cancelled'), 'Cancelled')
+  assert.equal(statusColor('cancelled'), 'var(--status-idle)')
   assert.equal(statusLabel('spawning'), 'Spawning')
   assert.equal(statusLabel('starting'), 'Starting')
   assert.equal(statusLabel('error'),    'Error')

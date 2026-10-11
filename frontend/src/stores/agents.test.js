@@ -322,3 +322,21 @@ test('sessionless event does not mutate ambiguous duplicate-name roster entries'
   store.processEvent({ agent_name: 'Worker', event_type: 'result', timestamp: 6 })
   assert.deepEqual(store.agentsList.map(a => a.status), ['running', 'running'])
 })
+
+test('cancelled lifecycle updates the existing team member without removing context', () => {
+  const store = useAgentsStore()
+  store.processEvent({agent_name: 'QE', event_type: 'idle', timestamp: 1, data: {}})
+  store.processEvent({agent_name: 'QE', event_type: 'cancelled', timestamp: 2, data: {}})
+  assert.equal(store.agents.get('QE').status, 'cancelled')
+  assert.equal(store.agents.get('QE').name, 'QE')
+})
+
+test('late cancel for old run cannot override a resumed incarnation', () => {
+  const store = useAgentsStore()
+  store.processEvent({agent_name: 'QE', event_type: 'started', run_id: 'new', timestamp: 2, data: {}})
+  store.processEvent({agent_name: 'QE', event_type: 'cancelled', run_id: 'old', timestamp: 3, data: {}})
+  assert.equal(store.agents.get('QE').status, 'running')
+  assert.equal(store.agents.get('QE').run_id, 'new')
+  store.processEvent({agent_name: 'QE', event_type: 'cancelled', run_id: 'new', timestamp: 4, data: {}})
+  assert.equal(store.agents.get('QE').status, 'cancelled')
+})

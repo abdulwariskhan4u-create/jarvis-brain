@@ -568,5 +568,70 @@
       "Sam [PM]": 4
     }
   },
-  "operator_capture_update": "Direct browser-tab screenshot and browser input APIs worked while native Mac capture was locked. Browser layout gate is no longer blocked on unlocking."
+  "operator_capture_update": "Direct browser-tab screenshot and browser input APIs worked while native Mac capture was locked. Browser layout gate is no longer blocked on unlocking.",
+  "live_cancel_resume_acceptance": {
+    "framework_commit": "8ada76a0",
+    "team_session": "fd71cddd",
+    "first_failure": {
+      "run": "d9d61350",
+      "tool_result": "Could not cancel — not running or not found",
+      "cause": "MCP-local process maps do not contain backend-launched UI-resume workers"
+    },
+    "first_fixed_cancel": {
+      "run": "d9d61350",
+      "tool_seconds": 1.1,
+      "owned_tree_count_before": 62,
+      "live_survivors_after": 0,
+      "cleanup": false
+    },
+    "manual_resume": {
+      "via": "Dashboard inject UI",
+      "new_run": "5b8e19dc",
+      "same_team": true,
+      "same_agent": "Devon [QE]",
+      "same_workspace": true,
+      "retained_sqlite_context_snapshot_before": 898,
+      "context_bytes_before": 472534,
+      "observed_tools": [
+        "memory_search (3 calls)",
+        "browser_navigate",
+        "browser_snapshot"
+      ],
+      "approved_qe_lesson_recalled": "b2105cd4d9674d6f90026991ecd1baad",
+      "no_edit_email_or_jira_in_probe": true,
+      "empty_history_recall_proven": false
+    },
+    "second_fixed_cancel": {
+      "run": "5b8e19dc",
+      "tool_seconds": 3.4,
+      "monitor_changed_to_cancelled_without_reload": true,
+      "launcher_gone": true
+    },
+    "later_new_run": {
+      "run": "96b45821",
+      "cause": "new SA FYI e99edc6f and PM ACTION 7e3981f0; not duplicate Dashboard message 47051b29",
+      "old_cancelled_status_retained": true,
+      "checkpoint_propagation_requires_team_level_directive": true
+    },
+    "regression_tests": {
+      "framework_spawn": "121 passed",
+      "backend_lifecycle_bridge_memory": "129 passed; 2 deprecation warnings",
+      "frontend_unit": "281 passed",
+      "frontend_build": "passed; existing chunk-size warning",
+      "new_process_helper_typecheck": "passed"
+    },
+    "screenshots": [
+      "live-cross-process-cancel-failure.png",
+      "live-cross-process-cancel-success.png"
+    ],
+    "open_gates": [
+      "native graph worker crash SCRUM-96",
+      "empty-history memory causality",
+      "natural 600-second boss/end run",
+      "live reduced-motion visual comparison",
+      "production graphics acceptance",
+      "measure reduction in redundant context/tool calls"
+    ],
+    "status": "Draft; bounded manual evidence only; no full production/game acceptance"
+  }
 }
