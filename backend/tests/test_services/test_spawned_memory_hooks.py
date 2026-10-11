@@ -29,7 +29,8 @@ async def test_spawned_recall_is_owner_scoped_and_deduplicated(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_spawn_capture_crosses_real_rpc_and_persists_owner_candidate(tmp_path, monkeypatch):
+@pytest.mark.parametrize("lane", ["fast", "slow"])
+async def test_spawn_capture_crosses_real_rpc_and_persists_owner_candidate(tmp_path, monkeypatch, lane):
     from core.database import init_db, SessionLocal, MemoryCandidate
     from services.runtime_rpc import RuntimeRpcServer
     from services.memory.rpc_handlers import register
@@ -40,9 +41,13 @@ async def test_spawn_capture_crosses_real_rpc_and_persists_owner_candidate(tmp_p
     monkeypatch.setattr("services.memory.spawn_handlers.get_memory_settings", lambda: cfg)
     async def generate(prompt):
         assert "Always keep games playable offline." in prompt
-        return json.dumps([{"kind": "instruction", "content": "User requires offline games.",
-                           "evidence_excerpt": "Always keep games playable offline.", "reasoning_type": "direct"}])
-    monkeypatch.setattr("services.memory.fast_extractor.build_extractor_generate_fn", lambda: generate)
+        return json.dumps([
+            {"kind": "fact", "content": "The user is Acceptance Dev.",
+             "evidence_excerpt": "[Acceptance Dev]", "reasoning_type": "direct"},
+            {"kind": "decision", "content": "The agent keeps game builds playable offline.",
+             "evidence_excerpt": "Always keep games playable offline.", "reasoning_type": "direct"},
+        ])
+    monkeypatch.setattr("services.memory.fast_extractor.build_extractor_generate_fn", lambda *_args: generate)
     # A short path also works on macOS's 104-byte Unix-socket path limit.
     import tempfile
     with tempfile.TemporaryDirectory(prefix="mem-rpc-") as directory:
@@ -52,13 +57,15 @@ async def test_spawn_capture_crosses_real_rpc_and_persists_owner_candidate(tmp_p
         try:
             client = RuntimeRpcClient(directory + "/rpc.sock")
             result = await asyncio.to_thread(client.call, "memory.capture", {
-                "agent_name": "Acceptance Dev", "snippet": "Always keep games playable offline.", "lane": "fast"})
+                "agent_name": "Acceptance Dev", "snippet": "[Acceptance Dev] Always keep games playable offline.", "lane": lane})
             assert "error" not in result
-            assert result["candidate_ids"]
+            assert len(result["candidate_ids"]) == 1  # Agent header is not a user fact.
             with SessionLocal() as db:
                 candidate = db.get(MemoryCandidate, result["candidate_ids"][0])
                 assert candidate.owner_agent_name == "Acceptance Dev"
-                assert json.loads(candidate.payload_json)["content"] == "User requires offline games."
+                payload = json.loads(candidate.payload_json)
+                assert payload["content"] == "The agent keeps game builds playable offline."
+                assert payload["subject_scope"] == "agent:Acceptance Dev"
         finally:
             await server.stop()
 

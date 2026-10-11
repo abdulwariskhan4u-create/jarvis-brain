@@ -21,15 +21,14 @@ async def _capture_safely(owner: str, snippet: str) -> None:
 
 
 async def capture(*, agent_name: str, snippet: str, lane: str = "fast") -> dict:
-    from services.memory.fast_extractor import run_fast_extraction, run_slow_extraction
+    from services.memory.agent_extractor import run_agent_extraction
     cfg = get_memory_settings()
     if not cfg.enabled or not cfg.auto_capture_preferences:
         return {"status": "disabled"}
     if not agent_name or lane not in {"fast", "slow"} or len(snippet) > 65536:
         raise ValueError("Invalid memory capture")
     owner = normalize_agent_name(agent_name)
-    extract = run_slow_extraction if lane == "slow" else run_fast_extraction
-    ids = await extract(owner, snippet, cfg)
+    ids = await run_agent_extraction(owner, snippet, cfg, lane=lane)
     return {"candidate_ids": ids}
 
 

@@ -19,6 +19,10 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services.memory.settings import MemorySettings
 
 logger = logging.getLogger("memory.fast_extractor")
 
@@ -193,7 +197,11 @@ def _snippet_ref(snippet: str) -> str:
     return "snippet:" + hashlib.sha1((snippet or "").encode("utf-8")).hexdigest()[:12]
 
 
-def _persist_candidates(owner, mems, cfg, candidate_type: str, snippet: str = "") -> list[str]:
+def _persist_candidates(
+    owner: str, mems: list[ExtractedMemory], cfg: MemorySettings,
+    candidate_type: str, snippet: str = "", *,
+    subject_scope: str = "user",
+) -> list[str]:
     """Propose extracted memories as candidates (ADD-only path). Shared by the
     fast and slow lanes.
 
@@ -229,16 +237,12 @@ def _persist_candidates(owner, mems, cfg, candidate_type: str, snippet: str = ""
                              "source_hash": hashlib.sha256(excerpt.encode("utf-8")).hexdigest()[:16],
                              "source_timestamp": now, "authority": "agent_observed"}]
                            if excerpt_ok else [])
-                # subject_scope="user" is intentional and asymmetric vs the
-                # compactor lane (which uses "agent:<owner>"): the fast lane
-                # extracts facts/preferences ABOUT THE USER from their messages,
-                # while the slow/compactor lane captures the AGENT's own
-                # observations. Different subjects → exact-dedup (keyed on
-                # subject_scope) correctly does NOT collapse them.
+                # Callers own attribution: personal chat targets the user;
+                # team transcripts target the agent, regardless of LLM output.
                 cand = cnd.create_candidate(
                     db, owner_agent_name=owner, candidate_type=candidate_type,
                     payload={"memory_type": m.memory_type, "content": m.content,
-                             "subject_scope": "user", "authority": "agent_observed",
+                             "subject_scope": subject_scope, "authority": "agent_observed",
                              "confidence": verdict.confidence, "entities": m.entities,
                              "reasoning_type": m.reasoning_type, "excerpt_ok": excerpt_ok,
                              "confidence_method": verdict.method},
