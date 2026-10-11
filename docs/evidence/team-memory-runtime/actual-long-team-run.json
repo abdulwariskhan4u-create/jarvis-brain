@@ -53,7 +53,15 @@
         "focus restored to openSettings",
         "saved contrast/reduced-motion/mute choices retained"
       ],
-      "status": "Settings checks passed; full game acceptance open"
+      "status": "mounting/scroll/DONE checks passed; keyboard overlap reproduced and partial CSS fix insufficient; revision7 requests viewport dialog with separate footer",
+      "keyboard_evidence": {
+        "viewport_width": 390,
+        "focused": "contrastSetting",
+        "before_center": "closeSettings",
+        "after_partial_fix_center": "contrastSetting",
+        "visual_problem_remains": "DONE still covers Reduce motion; single center assertion insufficient",
+        "team_change_revision": 7
+      }
     }
   ],
   "compact": {
@@ -167,11 +175,99 @@
     "full_framework_types": "110diagnostics; not passed"
   },
   "open_gates": [
+    "game mobile Settings footer layout and full keyboard traversal after revision7",
     "real600s survival, boss/end and offline game acceptance",
     "game graphics quality acceptance",
     "binary tool protection SCRUM91",
     "historical status/context/CC bloat SCRUM89",
     "autonomous shell timeout recovery policy",
     "native internal crash root trigger; process isolation tested separately"
-  ]
+  ],
+  "observed_qe_failure": {
+    "time": "13:37:26",
+    "response_stop_reason": "CANCELLED",
+    "error": "Broken pipe",
+    "root_cause": "unproven; durable stderr needed SCRUM90",
+    "recovery": "Jarvis UI resumed same member3051bbb5 after verifying latest error-state run"
+  },
+  "context_content_inspection": {
+    "recall_metrics": [
+      {
+        "snapshot": 808,
+        "agent": "Quinn [Dev]",
+        "messages": 130,
+        "recall_blocks": 0,
+        "recall_chars": 0,
+        "memory_bullets": 0,
+        "unique_bullets": 0,
+        "repeated_bullets": 0,
+        "largest_repeat_count": 0
+      },
+      {
+        "snapshot": 849,
+        "agent": "Quinn [Dev]",
+        "messages": 75,
+        "recall_blocks": 2,
+        "recall_chars": 2732,
+        "memory_bullets": 6,
+        "unique_bullets": 6,
+        "repeated_bullets": 0,
+        "largest_repeat_count": 1
+      },
+      {
+        "snapshot": 850,
+        "agent": "Devon [QE]",
+        "messages": 108,
+        "recall_blocks": 1,
+        "recall_chars": 756,
+        "memory_bullets": 2,
+        "unique_bullets": 2,
+        "repeated_bullets": 0,
+        "largest_repeat_count": 1
+      }
+    ],
+    "exact_tool_output_repeats": [
+      {
+        "tool": "read_text_file",
+        "chars": 4796,
+        "turns": [
+          4,
+          80
+        ]
+      },
+      {
+        "tool": "read_text_file",
+        "chars": 4282,
+        "turns": [
+          18,
+          82
+        ]
+      },
+      {
+        "tool": "playwright__browser_snapshot",
+        "chars": 1723,
+        "turns": [
+          22,
+          86
+        ]
+      },
+      {
+        "tool": "playwright__browser_snapshot",
+        "chars": 905,
+        "turns": [
+          30,
+          36
+        ]
+      },
+      {
+        "tool": "playwright__browser_snapshot",
+        "chars": 778,
+        "turns": [
+          44,
+          50
+        ]
+      }
+    ],
+    "interpretation": "Identical file output is candidate for conditional-version reads, not proof call was unnecessary. Browser snapshots may legitimately repeat. No exact repeated memory bullet observed in sampled snapshots."
+  }
 }
