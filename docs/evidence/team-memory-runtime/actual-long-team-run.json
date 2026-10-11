@@ -61,15 +61,87 @@
         "after_partial_fix_center": "contrastSetting",
         "visual_problem_remains": "DONE still covers Reduce motion; single center assertion insufficient",
         "team_change_revision": 7
-      }
+      },
+      "latest_manual_gap": "Snapshot880 live QE browser: overlay209.47px overflow:hidden, pane520px bottom850.77px, content459/459 no scroll range; programmatic scrollTop/focus is not native user scrolling acceptance. Rev9 delivered by root Jarvis to team; fix and operator manual test pending."
     },
     {
       "jira": "SCRUM-94",
       "finding": "agent role header auto-activated as user fact: user is Devon working QE",
       "root_cause": "team transcript routed through personal extractors; hardcoded user subject scope",
       "fix": "agent-experience extractor plus code-enforced allowed kinds and agent-owned scope",
-      "tests": "2685 backend tests pass; live retest pending",
-      "local_remediation": "archived only incorrect record; approved procedural lesson preserved"
+      "tests": "2685 backend suite before final framework pin;92 host resume/pause/memory/compaction/subprocess tests pass on ac7c2d0a;144 framework spawn tests pass",
+      "local_remediation": "archived only incorrect record; approved procedural lesson preserved",
+      "status": "actual v8 fast-lane extraction verified",
+      "live_run": "d9d61350",
+      "live_candidates": [
+        {
+          "id": "2d2f1ba57c5143d0be15ed73772e5add",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "8edd2ae3762042c285e20d1bfcada21c",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "3bd715023eb4411c9ec11174c67bf45a",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "pending"
+        },
+        {
+          "id": "16a1c244acaf4a389caeaa4749e95ca5",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "6147b1eab6e5493b95f2577deb3c77ca",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "a2cf2a35eefe42819420d119aa6e0ffa",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "9e1463d9e7414199a4029aad706a8e55",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "73e1bf7892d44d379423a9e0e0e3ff1d",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "9e855e6ec1394fa09062b0ad59ed09ce",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "2e201c0733754672b42758677843bcb4",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "a76fe640911d4d4283f20454f816ef93",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "auto_approved"
+        }
+      ],
+      "manual_procedure": "QE proposed eba9772baea448dc94b43b47d4027a41; pending, not manually approved"
     },
     {
       "jira": "SCRUM-95",
@@ -286,5 +358,165 @@
     ],
     "interpretation": "Identical file output is candidate for conditional-version reads, not proof call was unnecessary. Browser snapshots may legitimately repeat. No exact repeated memory bullet observed in sampled snapshots."
   },
-  "additional_open_gate": "Native0.17.1 worker unexpectedly exited again during link_entity at13:57:58; backend retained SQLite/FTS; native trigger not proven or fixed"
+  "additional_open_gate": "Native0.17.1 worker unexpectedly exited again during link_entity at13:57:58; backend retained SQLite/FTS; native trigger not proven or fixed",
+  "latest_cost_scope": "team fd71cddd actual run IDs, token rows after2708; excludes root Jarvis, compactor and extraction outside those run IDs",
+  "latest_cost_snapshot": [
+    {
+      "agent": "Avery [Designer]",
+      "calls": 30,
+      "input_tokens": 1999644,
+      "cache_hit_tokens": 1708544,
+      "output_tokens": 5092,
+      "fallback_est_usd": 2.91435,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Charlie [BA]",
+      "calls": 37,
+      "input_tokens": 2519891,
+      "cache_hit_tokens": 2268416,
+      "output_tokens": 8362,
+      "fallback_est_usd": 3.5478275,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Devon [QE]",
+      "calls": 316,
+      "input_tokens": 19184171,
+      "cache_hit_tokens": 17351424,
+      "output_tokens": 37053,
+      "fallback_est_usd": 26.6416775,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Quinn [Dev]",
+      "calls": 252,
+      "input_tokens": 16964411,
+      "cache_hit_tokens": 14803968,
+      "output_tokens": 45019,
+      "fallback_est_usd": 24.3562575,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Sam [PM]",
+      "calls": 181,
+      "input_tokens": 10050800,
+      "cache_hit_tokens": 8630016,
+      "output_tokens": 29697,
+      "fallback_est_usd": 14.63645,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Sawyer [SA]",
+      "calls": 29,
+      "input_tokens": 1518544,
+      "cache_hit_tokens": 1173760,
+      "output_tokens": 4355,
+      "fallback_est_usd": 2.37271,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Toby [DSO]",
+      "calls": 15,
+      "input_tokens": 889666,
+      "cache_hit_tokens": 728832,
+      "output_tokens": 2317,
+      "fallback_est_usd": 1.336295,
+      "pricing_source": "fallback"
+    }
+  ],
+  "latest_tool_profile": {
+    "scope": "actual SSE sessionfd71cddd after baseline; deduplicated run_id+turn_idx; stream gaps and truncated bodies may undercount",
+    "unique_turns": 2165,
+    "tools": [
+      [
+        "email__send_email",
+        203
+      ],
+      [
+        "execute",
+        85
+      ],
+      [
+        "read_text_file",
+        80
+      ],
+      [
+        "mcp-atlassian__jira_add_comment",
+        80
+      ],
+      [
+        "playwright__browser_evaluate",
+        60
+      ],
+      [
+        "playwright__browser_snapshot",
+        56
+      ],
+      [
+        "playwright__browser_click",
+        47
+      ],
+      [
+        "filesystem__read_text_file",
+        33
+      ],
+      [
+        "meeting_room__speak",
+        25
+      ],
+      [
+        "playwright__browser_navigate",
+        23
+      ],
+      [
+        "meeting_room__get_meeting_status",
+        18
+      ],
+      [
+        "filesystem__read_multiple_files",
+        14
+      ],
+      [
+        "playwright__browser_resize",
+        14
+      ],
+      [
+        "mcp-atlassian__jira_search",
+        13
+      ],
+      [
+        "mcp-atlassian__jira_get_issue",
+        11
+      ],
+      [
+        "filesystem__directory_tree",
+        10
+      ],
+      [
+        "playwright__browser_close",
+        9
+      ],
+      [
+        "playwright__browser_network_requests",
+        9
+      ]
+    ],
+    "agent_tool_calls": {
+      "Toby [DSO]": 27,
+      "Charlie [BA]": 51,
+      "Sam [PM]": 139,
+      "Avery [Designer]": 67,
+      "Devon [QE]": 322,
+      "Sawyer [SA]": 43,
+      "Quinn [Dev]": 209
+    },
+    "explicit_tool_errors": {
+      "Toby [DSO]": 1,
+      "Avery [Designer]": 7,
+      "Devon [QE]": 14,
+      "Quinn [Dev]": 17,
+      "Sam [PM]": 4
+    }
+  }
 }
