@@ -135,3 +135,36 @@ async def test_forget_is_owner_scoped(wired):
     # Even with the right evidence id, an agent can't forget another agent's memory.
     res = await rpc_handlers.memory_forget(agent_name="Jarvis", memory_id="memory:r1")
     assert "error" in res
+
+@pytest.mark.parametrize('status,valid_from,valid_until', [
+    ('archived', None, None),
+    ('deleted', None, None),
+    ('superseded', None, None),
+    ('active', None, 100.0),
+    ('active', 101.0, None),
+])
+async def test_fetch_never_returns_inactive_or_out_of_validity_memory(
+    wired, monkeypatch, status, valid_from, valid_until,
+):
+    monkeypatch.setattr(rpc_handlers.time, 'time', lambda: 100.0)
+    db = wired()
+    rec = db.get(MemoryRecord, 'm1')
+    rec.status = status
+    rec.valid_from = valid_from
+    rec.valid_until = valid_until
+    db.commit()
+    db.close()
+    result = await rpc_handlers.memory_fetch(agent_name='Jarvis', evidence_ids=['memory:m1'])
+    assert result == {'items': []}
+
+
+async def test_fetch_returns_current_memory_before_its_deadline(wired, monkeypatch):
+    monkeypatch.setattr(rpc_handlers.time, 'time', lambda: 100.0)
+    db = wired()
+    rec = db.get(MemoryRecord, 'm1')
+    rec.valid_from = 100.0
+    rec.valid_until = 100.1
+    db.commit()
+    db.close()
+    result = await rpc_handlers.memory_fetch(agent_name='Jarvis', evidence_ids=['memory:m1'])
+    assert [item['evidence_id'] for item in result['items']] == ['memory:m1']

@@ -81,6 +81,7 @@ async def memory_fetch(*, agent_name: str, evidence_ids: list) -> dict:
         return {"error": "missing bound agent identity"}
     db = get_db_session()
     out = []
+    now = time.time()
     try:
         for eid in evidence_ids or []:
             kind, _, rid = str(eid).partition(":")
@@ -91,7 +92,10 @@ async def memory_fetch(*, agent_name: str, evidence_ids: list) -> dict:
                                 "source_id": doc.source_id})
             elif kind == "memory":
                 rec = db.get(MemoryRecord, rid)
-                if rec and rec.owner_agent_name == agent_name:
+                if (rec and rec.owner_agent_name == agent_name
+                        and rec.status == "active"
+                        and (rec.valid_from is None or rec.valid_from <= now)
+                        and (rec.valid_until is None or now < rec.valid_until)):
                     out.append({"evidence_id": eid, "content": rec.content})
             elif kind == "comm":
                 # Graph/comm evidence uses the canonical {kind}:{id} scheme too;
