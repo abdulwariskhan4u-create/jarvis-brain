@@ -1,0 +1,72 @@
+{
+  "code_commit": "42fbd9a216425e6b90bd56f0c29fd37794423a48",
+  "framework_commit": "b2e26283",
+  "team": "fd71cddd",
+  "operator_observed_via": "local Jarvis Chat + SSE Team Monitor UI",
+  "scope": "Initial screen only; gameplay/boss/offline not accepted",
+  "before": {
+    "label": "Rev13",
+    "runs": [
+      "d33d474c",
+      "dae55f8a"
+    ],
+    "pm_to_qe_assignments": 1,
+    "pm_to_qe_followups": 2,
+    "qe_result_screenshot": "./rev13-first-screen.png",
+    "usage": {
+      "llm_calls": 20,
+      "input_tokens": 1128727,
+      "cached_input_tokens": 744960,
+      "output_tokens": 2494,
+      "estimated_cost_usd": 1.9155575
+    }
+  },
+  "after": {
+    "label": "Rev14",
+    "runs": [
+      "3d0e45f5",
+      "25d886e8"
+    ],
+    "pm_to_qe_assignments": 1,
+    "pm_to_qe_followups": 0,
+    "qe_to_pm_done_emails": 1,
+    "pm_status_email_to_root": 1,
+    "qe_result_screenshot": "./rev14-first-screen.png",
+    "usage": {
+      "llm_calls": 20,
+      "input_tokens": 1214624,
+      "cached_input_tokens": 809472,
+      "output_tokens": 2400,
+      "estimated_cost_usd": 2.04872
+    },
+    "worker_event": "fd71cddd:worker_cycle_closed:36",
+    "pm_distinguished_legacy_results": true,
+    "pm_preserved_exact_evidence_path": true,
+    "pm_declined_durable_memory_due_to_narrow_evidence": true,
+    "jira_comments": [
+      "10756",
+      "10757"
+    ]
+  },
+  "limitations": [
+    "One paired bounded check, not a general workflow benchmark.",
+    "Rev14 additionally corrects Jira evidence; growing histories confound token comparison.",
+    "Estimated costs use fallback pricing, not provider invoices.",
+    "No end-to-end token saving proved.",
+    "Quality schema verifies owned provenance and concise conditional assessment; not a perfect semantic quality classifier.",
+    "Existing approved/pending memories are not bulk rewritten or deleted."
+  ],
+  "verification": {
+    "backend_full": {
+      "passed": 2725,
+      "skipped": 4,
+      "deselected": 5,
+      "xfailed": 1,
+      "seconds": 149.86
+    },
+    "framework_spawn_passed": 123,
+    "frontend_unit_passed": 281,
+    "desktop_mobile_e2e_passed": 16,
+    "production_build": "passed"
+  }
+}

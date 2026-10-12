@@ -637,6 +637,8 @@ async def lifespan(app: FastAPI):
                 from services.memory.retrieval_hook import attach_memory_hooks_to_all
                 _n_mem = attach_memory_hooks_to_all(agent)
                 logger.info("[MEMORY] Retrieval hook attached to %d agent(s)", _n_mem)
+                from services.memory.spawn_handlers import recover_capture_intents
+                recover_capture_intents()
             except Exception as _e:
                 logger.warning("[MEMORY] Failed to attach retrieval hook: %s", _e, exc_info=True)
 
@@ -883,6 +885,8 @@ async def lifespan(app: FastAPI):
 
     # Close the FastAgent runtime (its async-with __aexit__) before the rest of
     # shutdown, bounded so a stuck teardown cannot hang process exit.
+    from services.memory.spawn_handlers import stop_captures
+    await stop_captures()
     _agent_shutdown.set()
     try:
         await asyncio.wait_for(_agent_task, timeout=30)

@@ -955,3 +955,19 @@ def test_on_context_overflow_hook_returns_false_when_nothing_to_compact(reg_db, 
         )
     )
     assert handled is False
+
+
+def test_subprocess_compaction_records_team_identity(reg_db, monkeypatch):
+    from types import SimpleNamespace
+
+    agent = FakeAgent(build_history(), usage=FakeUsage(current=1000, window=120000))
+    monkeypatch.setattr(cc, "get_compaction_config", lambda: _trigger_cfg())
+    hooks = cc.create_context_compaction_hooks(
+        run_id="child-run", session_id="team-a", team_name="acceptance-team",
+    )
+    assert asyncio.run(hooks.on_context_overflow(SimpleNamespace(_agent=agent), Exception("context overflow")))
+    with sqlite3.connect(reg_db) as connection:
+        row = connection.execute(
+            "SELECT run_id, session_id, team_name FROM context_compaction_events WHERE status='completed'"
+        ).fetchone()
+    assert row == ("child-run", "team-a", "acceptance-team")

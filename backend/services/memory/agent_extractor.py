@@ -44,6 +44,7 @@ async def run_agent_extraction(
     *,
     lane: str = "fast",
     generate_fn: Callable[[str], Awaitable[str]] | None = None,
+    raise_on_failure: bool = False,
 ) -> list[str]:
     """Team messages yield agent-scoped knowledge, never user-profile facts.
 
@@ -54,6 +55,8 @@ async def run_agent_extraction(
         return []
     generate = generate_fn or fast_extractor.build_extractor_generate_fn(f"memory:agent:{lane}")
     if generate is None:
+        if raise_on_failure:
+            raise RuntimeError("Agent learning extractor is unavailable")
         return []
     try:
         known = fast_extractor._known_facts(owner, limit=12)
@@ -61,8 +64,13 @@ async def run_agent_extraction(
         raw = await generate(prompt + "\n\nTeam transcript:\n" + snippet)
     except Exception:
         logger.warning("[MEMORY] Agent experience extraction failed for %s", owner, exc_info=True)
+        if raise_on_failure:
+            raise
         return []
-    memories = [m for m in fast_extractor.parse_extraction(raw) if m.kind in _ALLOWED_KINDS][:3]
+    memories = [
+        m for m in fast_extractor.parse_extraction(raw, strict=raise_on_failure)
+        if m.kind in _ALLOWED_KINDS
+    ][:3]
     if not memories:
         return []
     return fast_extractor._persist_candidates(

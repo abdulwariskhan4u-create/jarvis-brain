@@ -1324,7 +1324,9 @@ async def _run_compaction(
 # ---------------------------------------------------------------------------
 
 
-def create_context_compaction_hooks():
+def create_context_compaction_hooks(
+    *, run_id: str = "", session_id: str | None = None, team_name: str | None = None
+):
     """``before_llm_call`` hook: threshold-check + compact the agent's
     message_history. The pending delta is never touched; the imminent
     LLM call picks the compacted history up automatically because the
@@ -1353,7 +1355,9 @@ def create_context_compaction_hooks():
             await maybe_compact_agent(
                 agent,
                 agent_name=normalize_agent_name(raw_name),
-                run_id=current_run_id.get() or "",
+                run_id=run_id or current_run_id.get() or "",
+                session_id=session_id,
+                team_name=team_name,
             )
         except Exception as exc:
             # Never let compaction break the LLM call.
@@ -1377,7 +1381,9 @@ def create_context_compaction_hooks():
             stats = await maybe_compact_agent(
                 agent,
                 agent_name=normalize_agent_name(raw_name),
-                run_id=current_run_id.get() or "",
+                run_id=run_id or current_run_id.get() or "",
+                session_id=session_id,
+                team_name=team_name,
                 reason="context_overflow",
             )
             return stats is not None
@@ -1391,14 +1397,18 @@ def create_context_compaction_hooks():
     )
 
 
-def attach_compaction_hooks_to_all(agent_app) -> int:
+def attach_compaction_hooks_to_all(
+    agent_app, *, run_id: str = "", session_id: str | None = None, team_name: str | None = None
+) -> int:
     """Idempotently attach the compaction hook to every in-process agent
     (sentinel ``_jarvis_compaction_hook``, same pattern as the token
     hook). Returns the number of agents newly hooked.
     """
     from services.sse_progress import merge_hooks
 
-    hook = create_context_compaction_hooks()
+    hook = create_context_compaction_hooks(
+        run_id=run_id, session_id=session_id, team_name=team_name
+    )
     newly = 0
     try:
         agents = getattr(agent_app, "_agents", {}) or {}

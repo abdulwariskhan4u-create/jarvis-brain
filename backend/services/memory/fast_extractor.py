@@ -86,10 +86,14 @@ class ExtractedMemory:
         return _TYPE_MAP.get(self.kind, "semantic")
 
 
-def parse_extraction(raw: str) -> list[ExtractedMemory]:
-    """Tolerant parse of the LLM's JSON array. A malformed reply yields [] (the
-    extractor is best-effort; a bad batch is dropped, not crashed)."""
+def parse_extraction(raw: str, *, strict: bool = False) -> list[ExtractedMemory]:
+    """Parse the LLM's array; durable capture opts into errors on bad batches.
+
+    Best-effort callers retain the default empty result on malformed replies.
+    """
     if not raw:
+        if strict:
+            raise ValueError("Invalid extraction: empty response")
         return []
     text = raw.strip()
     if text.startswith("```"):                     # strip code fences if present
@@ -97,17 +101,25 @@ def parse_extraction(raw: str) -> list[ExtractedMemory]:
         text = text[text.find("["):] if "[" in text else text
     start, end = text.find("["), text.rfind("]")
     if start == -1 or end == -1 or end < start:
+        if strict:
+            raise ValueError("Invalid extraction: expected a JSON array")
         return []
     try:
         items = json.loads(text[start:end + 1])
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
+        if strict:
+            raise ValueError("Invalid extraction: malformed JSON array") from exc
         return []
     out: list[ExtractedMemory] = []
     for it in items if isinstance(items, list) else []:
         if not isinstance(it, dict):
+            if strict:
+                raise ValueError("Invalid extraction: expected lesson objects")
             continue
         content = str(it.get("content") or "").strip()
         if not content:
+            if strict:
+                raise ValueError("Invalid extraction: missing lesson content")
             continue
         ents = [e for e in (it.get("entities") or []) if isinstance(e, dict) and e.get("name")]
         excerpt = str(it.get("evidence_excerpt") or "").strip()

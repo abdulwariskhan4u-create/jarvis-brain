@@ -20,7 +20,7 @@ async def test_spawn_capture_routes_to_agent_subject_not_personal_user(monkeypat
     monkeypatch.setattr('services.memory.agent_extractor.run_agent_extraction', agent)
     result = await spawn_handlers.capture(agent_name='Devon [QE]', snippet='[Devon [QE]]', lane=lane)
     personal.assert_not_called()
-    agent.assert_awaited_once_with('Devon [QE]', '[Devon [QE]]', cfg, lane=lane)
+    agent.assert_awaited_once_with('Devon [QE]', '[Devon [QE]]', cfg, lane=lane, raise_on_failure=True)
     assert result['candidate_ids'] == ['agent-learning']
 
 

@@ -339,3 +339,23 @@ async def test_check_and_resume_warns_when_inbox_empty(tmp_path, caplog):
         f"Expected an INFO log saying Adrian has 0 unread / nothing to resume. "
         f"Got: {[(r.levelname, r.getMessage()) for r in caplog.records]}"
     )
+
+
+@pytest.fixture(autouse=True)
+def owned_resume_history(tmp_path, monkeypatch):
+    """Path-resolution tests resume real, team-owned native history."""
+    import sqlite3
+    import time
+    from services.context_persistence import _ensure_table
+
+    database = str(tmp_path / "resume-history.db")
+    monkeypatch.setenv("SPAWN_REGISTRY_DB", database)
+    with sqlite3.connect(database) as connection:
+        _ensure_table(connection)
+        for session in ("deadbeef", "ssotsid", "canonical"):
+            connection.execute(
+                "INSERT INTO agent_context_snapshots "
+                "(run_id, agent_name, session_id, context_json, created_at) VALUES (?, ?, ?, ?, ?)",
+                ("prior-run", "Adrian [BA]", session,
+                 '{"messages":[{"role":"user","content":[{"type":"text","text":"original task"}]}]}', time.time()),
+            )

@@ -45,6 +45,7 @@ def _make_session(agents: dict, *, template_name: str = "agile-team",
 def _record(status: str, *, last_active_at: float | None,
             result: str = "") -> MagicMock:
     rec = MagicMock()
+    rec.run_id = "current-run"
     rec.status = status
     rec.result = result
     rec.last_active_at = last_active_at
@@ -82,6 +83,7 @@ def test_idle_with_recent_activity_stays_idle():
     )
 
     pm = payload["agents"]["Morgan [PM]"]
+    assert pm["run_id"] == "current-run"
     assert pm["status"] == "idle"
     assert "stuck_seconds" not in pm
     assert payload["sprint_status"] == "completed"

@@ -295,6 +295,7 @@ if _SPAWNER_ENABLED:
         "cancel_spawn_tool",
         "restart_spawn",
         "resume_spawn",
+        "resume_team_member",
         "remove_spawned_agent",
         "list_available_servers_tool",
         "spawn_team_tool",
