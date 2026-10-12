@@ -65,7 +65,12 @@ def test_high_confidence_does_not_replace_learning_value(db, overrides):
 
 def test_short_verified_workflow_is_saved_with_quality_audit(db):
     candidate = propose(db)
-    assert candidate.status == 'auto_approved'
+    assert candidate.status == 'pending'
+    assert candidate.requires_approval == 1
+    assert db.query(MemoryRecord).count() == 0
+    assert candidates.approval_reason(payload()) == 'agent_learning_review'
+    candidates.approve_candidate(db, candidate.id)
+    assert candidate.status == 'approved'
     record = db.query(MemoryRecord).one()
     assert record.subject_scope == 'agent:Devon [QE]'
     metadata = json.loads(db.query(MemoryVersion).one().metadata_json)
@@ -110,6 +115,10 @@ async def test_extraction_drops_real_run_report_and_saves_evidenced_workflow(db)
         SimpleNamespace(approval_policy='auto_low_risk'), generate_fn=generate,
     )
     assert len(ids) == 1
+    assert db.query(MemoryRecord).count() == 0
+    candidate = db.get(MemoryCandidate, ids[0])
+    assert candidate.status == 'pending'
+    candidates.approve_candidate(db, candidate.id)
     assert db.query(MemoryRecord).one().content == payload()['content']
 
 
@@ -155,8 +164,21 @@ async def test_explicit_lesson_requires_owned_persisted_evidence(db, monkeypatch
         enabled=True, approval_policy='auto_low_risk', pinned_token_budget=1500))
     out = await rpc_handlers.memory_remember(
         agent_name='Devon [QE]', content=payload()['content'], memory_type='procedural', learning=LESSON)
-    assert out['status'] == 'auto_approved'
-    assert db.query(MemoryRecord).one().subject_scope == 'agent:Devon [QE]'
+    assert out['status'] == 'pending'
+    assert db.query(MemoryRecord).count() == 0
+    assert db.query(MemoryCandidate).one().requires_approval == 1
+
+
+@pytest.mark.parametrize('kind', ['agent_remember', 'procedure', 'extracted_agent', 'compaction_semantic'])
+def test_agent_learning_cannot_disable_semantic_review(db, kind):
+    candidate = candidates.create_candidate(
+        db, owner_agent_name='Devon [QE]', candidate_type=kind,
+        payload=payload(), confidence=0.99, requires_approval=False,
+        sources=[{'source_type': 'conversation_snippet', 'source_excerpt': OUTCOME}],
+    )
+    assert candidate.status == 'pending'
+    assert candidate.requires_approval == 1
+    assert db.query(MemoryRecord).count() == 0
 
 
 @pytest.mark.parametrize('owner,recalled', [('Other [Dev]', False), ('Devon [QE]', True)])

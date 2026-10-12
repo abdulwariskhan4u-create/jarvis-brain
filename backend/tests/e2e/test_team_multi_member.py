@@ -14,8 +14,8 @@ What these tests guard (in order):
 * **Parallel spawn safety** — two Dev members writing snapshots
   concurrently must both land in the shared DB with distinct agent_names.
   Guards against SQLite lock/race regressions in ``save_agent_context``.
-* **Env-var → snapshot contract** — TEAM_MY_NAME/TEAM_MY_ROLE/TEAM_SESSION_ID
-  must round-trip to ``agent_name`` / ``team_name`` / ``session_id`` columns.
+* **Identity → snapshot contract** — TEAM_MY_NAME/TEAM_SESSION_ID and handoff
+  team_name must round-trip; role must never be substituted for team identity.
 
 ``team_communicate`` tool coverage is intentionally deferred (skipped test)
 because wiring the ``team-communicate`` MCP server into the current
@@ -97,6 +97,7 @@ def test_two_members_share_session_id_in_snapshots(tmp_path: Path):
         task="Kick off the project",
         tmp_path=tmp_path,
         extra_env=pm_env,
+        team_name="shared-game-team",
         timeout=120,
     )
     dev_result = run_scripted_subprocess(
@@ -104,6 +105,7 @@ def test_two_members_share_session_id_in_snapshots(tmp_path: Path):
         task="Implement feature X",
         tmp_path=tmp_path,
         extra_env=dev_env,
+        team_name="shared-game-team",
         timeout=120,
     )
 
@@ -131,8 +133,8 @@ def test_two_members_share_session_id_in_snapshots(tmp_path: Path):
     assert "Khoi [Dev]" in by_name, (
         f"Dev snapshot missing. Agents seen: {list(by_name)}"
     )
-    assert by_name["Linh [PM]"]["team_name"] == "pm"
-    assert by_name["Khoi [Dev]"]["team_name"] == "dev"
+    assert by_name["Linh [PM]"]["team_name"] == "shared-game-team"
+    assert by_name["Khoi [Dev]"]["team_name"] == "shared-game-team"
 
     for snap in session_snaps:
         _assert_has_assistant_message(snap)
@@ -155,6 +157,7 @@ def test_parallel_dev_members_both_persist_snapshot(tmp_path: Path):
             fixture_path=FIXTURES / "team_dev_complete.yaml",
             task=f"Implement feature for {name}",
             tmp_path=sub_tmp,
+            team_name="parallel-game-team",
             extra_env={
                 "TEAM_MY_NAME": name,
                 "TEAM_MY_ROLE": "dev",
@@ -191,8 +194,8 @@ def test_parallel_dev_members_both_persist_snapshot(tmp_path: Path):
     assert names == {"Khoi [Dev]", "Nam [Dev]"}, (
         f"Parallel Dev snapshots missing or duplicated. agent_names={names}"
     )
-    assert all(s["team_name"] == "dev" for s in session_snaps), (
-        f"team_name must be 'dev' for both. "
+    assert all(s["team_name"] == "parallel-game-team" for s in session_snaps), (
+        f"team_name must be 'parallel-game-team' for both. "
         f"got {[(s['agent_name'], s['team_name']) for s in session_snaps]}"
     )
 
@@ -215,8 +218,8 @@ def test_team_communicate_message_persists_in_inbox_file(tmp_path: Path):
 
 @pytest.mark.slow
 def test_env_vars_propagate_to_subprocess_snapshot(tmp_path: Path):
-    """Single Dev spawn — verify TEAM_MY_NAME / TEAM_MY_ROLE / TEAM_SESSION_ID
-    each map to their snapshot column without silent drops.
+    """Single Dev spawn — verify agent/session env and handoff team identity
+    without substituting the role for the team name.
     """
     env = {
         "TEAM_MY_NAME": "Nga [Dev]",
@@ -230,6 +233,7 @@ def test_env_vars_propagate_to_subprocess_snapshot(tmp_path: Path):
         task="Verify env propagation",
         tmp_path=tmp_path,
         extra_env=env,
+        team_name="envcheck-team",
         timeout=120,
     )
 
@@ -246,8 +250,8 @@ def test_env_vars_propagate_to_subprocess_snapshot(tmp_path: Path):
     assert snap["agent_name"] == "Nga [Dev]", (
         f"TEAM_MY_NAME → agent_name drift: got {snap['agent_name']!r}"
     )
-    assert snap["team_name"] == "dev", (
-        f"TEAM_MY_ROLE → team_name drift: got {snap['team_name']!r}"
+    assert snap["team_name"] == "envcheck-team", (
+        f"Handoff team_name drift: got {snap['team_name']!r}"
     )
     assert snap["session_id"] == "agile-envcheck-042", (
         f"TEAM_SESSION_ID → session_id drift: got {snap['session_id']!r}"

@@ -66,6 +66,11 @@ def create_candidate(
     immediately (auto_approved)."""
     now = time.time() if now is None else now
     validate_learning(payload, sources)
+    # A verified quote proves provenance, not long-term usefulness. Autonomous
+    # agent learning needs semantic review even under auto_low_risk policy.
+    if (str(payload.get("subject_scope", "")).startswith("agent:")
+            and payload.get("authority") != "user_confirmed"):
+        requires_approval = True
     content = payload.get("content", "")
     dedupe = _dedupe_key(owner_agent_name, content, payload.get("subject_scope", "user"))
 
@@ -215,6 +220,9 @@ def approval_reason(payload: dict, content: str = "") -> str | None:
         return "secret"
     if payload.get("excerpt_ok") is False:
         return "unverified_evidence"
+    if (str(payload.get("subject_scope", "")).startswith("agent:")
+            and payload.get("authority") != "user_confirmed"):
+        return "agent_learning_review"
     return None
 
 

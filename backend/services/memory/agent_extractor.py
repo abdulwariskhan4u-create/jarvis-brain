@@ -21,6 +21,11 @@ improvement after trying a different approach. Do not
 infer personal facts, identities, preferences or standing instructions about the
 human user. Task progress, run reports, remaining acceptance gates, untested advice,
 generic good practice and instructions to do a current task are NOT lessons.
+Do not extract basic tool affordances already covered by tool instructions, such
+as reading PNG with a media reader rather than a text reader, or a single denied
+call followed by the documented correct call. A success response alone does not
+prove a novel workflow or a repeatable improvement. Prefer a concise conditional
+coordination rule whose changed workflow was actually tried and improved results.
 Example: repeated clarification -> agree owner/output/acceptance before delegation
 -> observed fewer clarification messages with the same acceptance quality.
 Store the resulting conditional workflow, not each message or the retro transcript.

@@ -735,6 +735,7 @@
     },
     "scoreHint": "rrf = raw lane-fusion rank score (keyword + vector). rerank = cross-encoder joint (query, memory) relevance — the authoritative order, near 1.0 when the query nearly restates the memory. conf = confidence the fact is true (0–1). ✓ = verified (user-confirmed or tool-verified).",
     "approvalReason": {
+      "agent_learning_review": "Review this agent-proposed lesson for lasting value before it is used. Verified evidence alone does not make it worth keeping; task progress and existing tool guidance belong elsewhere.",
       "unverified_evidence": "Needs review even with auto-save on: the evidence for this memory couldn't be verified against your messages, so it wasn't auto-saved.",
       "secret": "Needs review: this looks like sensitive/secret content, which is never auto-saved."
     },

@@ -7,7 +7,7 @@ named env var silently breaks collaboration/persistence.
 
 What the test asserts:
  * `TEAM_MY_NAME` → snapshot.agent_name
- * `TEAM_MY_ROLE` → snapshot.team_name  (historical naming — confusing but real)
+ * Handoff team_name → snapshot.team_name, never TEAM_MY_ROLE
  * `TEAM_SESSION_ID` → snapshot.session_id
  * Row count: exactly one task-completion snapshot
  * context_json parses to a list that contains the scripted assistant reply
@@ -46,6 +46,7 @@ def test_team_member_subprocess_persists_snapshot(tmp_path: Path):
         task="Kick off the project",
         tmp_path=tmp_path,
         extra_env=team_env,
+        team_name="snapshot-test-team",
     )
 
     assert result.returncode == 0, (
@@ -67,11 +68,9 @@ def test_team_member_subprocess_persists_snapshot(tmp_path: Path):
         f"TEAM_MY_NAME -> agent_name propagation broken. "
         f"Expected 'Linh [PM]', got {snap['agent_name']!r}"
     )
-    # Note: TEAM_MY_ROLE is stored as team_name in the snapshot (confusing
-    # but intentional; see isolated_runner._save_agent_context_snapshot).
-    assert snap["team_name"] == "pm", (
-        f"TEAM_MY_ROLE -> team_name propagation broken. "
-        f"Expected 'pm', got {snap['team_name']!r}"
+    assert snap["team_name"] == "snapshot-test-team", (
+        f"Handoff team_name propagation broken. "
+        f"Expected 'snapshot-test-team', got {snap['team_name']!r}"
     )
 
     raw = json.loads(snap["context_json"])
