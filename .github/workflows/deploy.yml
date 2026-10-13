@@ -9,6 +9,11 @@ on:
 env:
   PERSIST_DIR: ~/jarvis-data
 
+# Serialize deployments sharing the same runner workspace and Docker daemon.
+concurrency:
+  group: jarvis-production-deploy
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: self-hosted
@@ -93,6 +98,9 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Check build disk headroom
+        run: bash build/deploy-disk-preflight.sh
 
       - name: Build & Deploy
         run: |
