@@ -2,11 +2,11 @@
 /**
  * Token Usage — LLM token consumption + cost dashboard.
  *
- * Logic preserved verbatim from the previous TokenUsage view (REST fetch
- * on period change, SSE merge from store.tokenMetrics, mono-numeric table
- * + simple SVG bar chart). Only the visual shell + tokens changed.
+ * REST snapshots reconcile persisted SSE call IDs. Reconnects recover gaps
+ * once; there is no polling timer.
  */
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { mergeTokenUsageEvents } from '../utils/tokenUsageMerge.js'
 import { useRoute } from 'vue-router'
 import { apiFetch } from '../api'
 import { useAgentsStore } from '../stores/agents'
@@ -30,101 +30,48 @@ const periods = [
   { value: 'all', label: 'All' },
 ]
 
+let requestVersion = 0
 async function fetchMetrics() {
+  const version = ++requestVersion
   isLoading.value = true
   try {
     const agentFilter = route.query.agent || ''
-    const params = `?period=${period.value}` + (agentFilter ? `&agent=${agentFilter}` : '')
-    const data = await apiFetch(`/api/metrics/tokens${params}`)
+    const params = new URLSearchParams({ period: period.value })
+    if (agentFilter) params.set('agent', agentFilter)
+    const data = await apiFetch(`/api/metrics/tokens?${params}`)
+    if (version !== requestVersion) return
+    mergeTokenUsageEvents(data, store.tokenUsageEvents.values())
     metricsData.value = data
   } catch (e) {
     console.error('[TokenUsage] Failed to fetch metrics:', e)
   } finally {
-    isLoading.value = false
+    if (version === requestVersion) isLoading.value = false
   }
 }
 
-watch(period, fetchMetrics)
+watch([period, () => route.query.agent, () => store.activityReconnectRevision], fetchMetrics)
 
 onMounted(() => {
   fetchMetrics()
+  document.addEventListener('visibilitychange', refreshWhenVisible)
+})
+function refreshWhenVisible() {
+  if (document.visibilityState === 'visible') fetchMetrics()
+}
+onUnmounted(() => {
+  requestVersion++
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
 })
 
-// SSE merge — same algorithm as the previous implementation.
+// Merge only usage rows newer than the persisted REST snapshot.
 watch(
-  () => store.tokenMetrics,
+  () => store.tokenUsageEvents,
   (newMetrics) => {
     if (!metricsData.value || !newMetrics.size) return
-    mergeSSEIntoMetrics(newMetrics)
+    if (mergeTokenUsageEvents(metricsData.value, newMetrics.values()) && !isLoading.value) fetchMetrics()
   },
   { deep: true }
 )
-
-function mergeSSEIntoMetrics(sseMap) {
-  const data = metricsData.value
-  if (!data) return
-
-  for (const [agentName, sse] of sseMap) {
-    const mergedKey = `_merged_${agentName}`
-    const prevMerged = data[mergedKey] || {
-      total_tokens: 0, input_tokens: 0, output_tokens: 0,
-      cached_tokens: 0, est_cost: 0, llm_calls: 0,
-    }
-
-    const delta = {
-      total_tokens: (sse.total_tokens || 0) - prevMerged.total_tokens,
-      input_tokens: (sse.input_tokens || 0) - prevMerged.input_tokens,
-      output_tokens: (sse.output_tokens || 0) - prevMerged.output_tokens,
-      cached_tokens: (sse.cached_tokens || 0) - prevMerged.cached_tokens,
-      est_cost: (sse.est_cost || 0) - prevMerged.est_cost,
-      llm_calls: (sse.llm_calls || 0) - prevMerged.llm_calls,
-    }
-
-    if (delta.total_tokens <= 0 && delta.llm_calls <= 0) continue
-
-    if (!data.totals) data.totals = {}
-    data.totals.total_tokens = (data.totals.total_tokens || 0) + delta.total_tokens
-    data.totals.input_tokens = (data.totals.input_tokens || 0) + delta.input_tokens
-    data.totals.output_tokens = (data.totals.output_tokens || 0) + delta.output_tokens
-    data.totals.cached_tokens = (data.totals.cached_tokens || 0) + delta.cached_tokens
-    data.totals.est_cost = (data.totals.est_cost || 0) + delta.est_cost
-    data.totals.llm_calls = (data.totals.llm_calls || 0) + delta.llm_calls
-
-    if (!data.agents) data.agents = []
-    let agent = data.agents.find(a => a.agent_name === agentName)
-    if (!agent) {
-      agent = { agent_name: agentName, total_tokens: 0, input_tokens: 0, output_tokens: 0, cached_tokens: 0, est_cost: 0, llm_calls: 0 }
-      data.agents.push(agent)
-    }
-    agent.total_tokens += delta.total_tokens
-    agent.input_tokens += delta.input_tokens
-    agent.output_tokens += delta.output_tokens
-    agent.cached_tokens = (agent.cached_tokens || 0) + delta.cached_tokens
-    agent.est_cost += delta.est_cost
-    agent.llm_calls += delta.llm_calls
-
-    if (sse.model) {
-      if (!data.models) data.models = []
-      let model = data.models.find(m => m.model === sse.model)
-      if (!model) {
-        model = { model: sse.model, total_tokens: 0, input_tokens: 0, output_tokens: 0, est_cost: 0, llm_calls: 0 }
-        data.models.push(model)
-      }
-      model.total_tokens += delta.total_tokens
-      model.input_tokens += delta.input_tokens
-      model.output_tokens += delta.output_tokens
-      model.est_cost += delta.est_cost
-      model.llm_calls += delta.llm_calls
-    }
-
-    data[mergedKey] = { ...sse }
-  }
-
-  if (data.agents) data.agents.sort((a, b) => b.total_tokens - a.total_tokens)
-  if (data.models) data.models.sort((a, b) => b.total_tokens - a.total_tokens)
-
-  metricsData.value = { ...data }
-}
 
 // Formatters
 function fmtTokens(n) {
@@ -218,6 +165,9 @@ const kpis = computed(() => [
 
     <p role="note" :aria-label="t('tokens.costProvenanceTitle')" class="tokens__desc" style="margin-bottom: var(--space-4, 16px);">
       {{ t('tokens.costProvenance') }}
+      <span v-if="totals.unverified_pricing_calls" class="block mt-2 text-amber-400">
+        {{ t('tokens.unverifiedPricingCalls').replace('{count}', totals.unverified_pricing_calls) }}
+      </span>
     </p>
 
     <!-- ─── KPI cards ─── -->

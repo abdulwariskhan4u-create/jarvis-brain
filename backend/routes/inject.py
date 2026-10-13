@@ -123,7 +123,7 @@ async def inject_prompt(
                 # loads context by display name and can race another wake.
                 if _record_session_id(records[0]):
                     return await _inject_via_message_bus(
-                        agent_name, message, records[0],
+                        agent_name, message, records[0], files_data,
                     )
 
                 # Path A: Process alive → MessageBus (inline delivery, no flow disruption)
@@ -132,7 +132,7 @@ async def inject_prompt(
                     None,
                 )
                 if alive:
-                    return await _inject_via_message_bus(agent_name, message, alive)
+                    return await _inject_via_message_bus(agent_name, message, alive, files_data)
 
                 # Path B: Process dead → Resume with context from DB
                 latest = records[0]  # sorted by started_at DESC
@@ -222,6 +222,7 @@ async def _parse_request(request: Request) -> tuple[str, list[dict]]:
 
 async def _inject_via_message_bus(
     agent_name: str, message: str, spawn_record: dict,
+    files_data: list[dict] | None = None,
 ) -> InjectResponse:
     """Inject message into spawned agent via MessageBus.
 
@@ -258,7 +259,10 @@ async def _inject_via_message_bus(
             messages_dir.mkdir(parents=True, exist_ok=True)
 
         bus = MessageBus(messages_dir=str(messages_dir))
-        queued = bus.send(from_name="Dashboard", to_name=agent_name, content=message)
+        queued = bus.send(
+            from_name="Dashboard", to_name=agent_name, content=message,
+            context={"attachments": files_data} if files_data else None,
+        )
 
         logger.info("[INJECT] MessageBus: Dashboard → %s (queued)", agent_name)
 

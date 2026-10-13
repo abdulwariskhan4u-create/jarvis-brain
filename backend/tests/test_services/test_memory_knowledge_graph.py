@@ -157,3 +157,55 @@ async def test_backfill_skips_already_filled_unless_forced(test_db):
     db.commit(); db.close()
     assert await kg.backfill_relations("Jarvis", generate_fn=_fixed_fn("[]")) == 0   # already filled
     assert await kg.backfill_relations("Jarvis", force=True, generate_fn=_fixed_fn("[]")) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mode', ['single', 'backfill'])
+async def test_graph_extraction_releases_pool_connection_during_llm(tmp_path, monkeypatch, mode):
+    import core.database as cd
+    engine = create_engine(f'sqlite:///{tmp_path / "pool.db"}',
+                          pool_size=1, max_overflow=0, pool_timeout=0.1)
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine)
+    monkeypatch.setattr(cd, 'get_db_session', factory)
+    with factory() as db:
+        db.add(MemoryRecord(id='pool', owner_agent_name='Dev', memory_type='semantic',
+                            content='Offline game', subject_scope='user', normalized_content='offline game',
+                            authority='agent_observed',
+                            status='active',current_version=1))
+        db.commit()
+    async def gen(prompt):
+        with factory() as db:
+            assert db.get(MemoryRecord, 'pool').status == 'active'
+        return '[{"s":"game","p":"supports","o":"offline"}]'
+    try:
+        if mode == 'single':
+            assert await kg.extract_and_store('pool', generate_fn=gen)
+        else:
+            assert await kg.backfill_relations('Dev', generate_fn=gen) == 1
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mode', ['single', 'backfill'])
+async def test_graph_rejects_stale_provider_result(test_db, mode):
+    with test_db() as db:
+        db.add(MemoryRecord(id='m1', owner_agent_name='Jarvis', memory_type='semantic',
+                            subject_scope='user', content='Original fact', normalized_content='original fact',
+                            authority='agent_observed', status='active', current_version=1))
+        db.commit()
+    async def gen(prompt):
+        with test_db() as db:
+            rec = db.get(MemoryRecord, 'm1')
+            rec.content = 'Changed while extraction was running'
+            rec.current_version += 1
+            db.commit()
+        return '[{"s":"old","p":"likes","o":"stale"}]'
+    # An updated version must not receive stale relations.
+    if mode == 'single':
+        assert await kg.extract_and_store('m1', generate_fn=gen) is False
+    else:
+        assert await kg.backfill_relations('Jarvis', generate_fn=gen) == 0
+    with test_db() as db:
+        assert db.get(MemoryRecord, 'm1').relations_json is None

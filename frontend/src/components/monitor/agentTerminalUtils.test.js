@@ -244,6 +244,8 @@ test('statusLabel covers every pause-cycle state', () => {
 })
 
 test('statusLabel covers spawn lifecycle statuses', () => {
+  assert.equal(statusLabel('cancelled'), 'Cancelled')
+  assert.equal(statusColor('cancelled'), 'var(--status-idle)')
   assert.equal(statusLabel('spawning'), 'Spawning')
   assert.equal(statusLabel('starting'), 'Starting')
   assert.equal(statusLabel('error'),    'Error')
@@ -262,4 +264,17 @@ test('statusColor covers every pause-cycle state', () => {
   for (const s of ['running', 'pausing', 'paused', 'resuming', 'idle', 'error']) {
     assert.notEqual(statusColor(s), GRAY, `${s} must have an explicit color`)
   }
+})
+
+test('resume runs have distinct render keys even when turn indices restart', () => {
+  const turns = [
+    { run_id: 'old', turn_idx: 0, role: 'user' },
+    { run_id: 'old', turn_idx: 1, role: 'assistant' },
+    { run_id: 'new', turn_idx: 0, role: 'user' },
+    { run_id: 'new', turn_idx: 1, role: 'assistant' },
+  ]
+  const rows = buildRenderRows(turns)
+  assert.equal(new Set(rows.map(row => row.key)).size, rows.length)
+  const continued = buildRenderRows([...turns, { run_id: 'new', turn_idx: 2, role: 'assistant' }])
+  assert.deepEqual(continued.slice(0, rows.length).map(row => row.key), rows.map(row => row.key))
 })

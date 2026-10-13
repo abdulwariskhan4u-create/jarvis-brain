@@ -211,6 +211,7 @@ class AgentRegistryDB:
         """Upsert a spawn record. Used by SpawnProgressBridge for real-time updates."""
         try:
             with _connect() as conn:
+                conn.execute("BEGIN IMMEDIATE")
                 existing = conn.execute(
                     "SELECT data_json FROM spawn_registry WHERE run_id = ?",
                     (run_id,),
@@ -218,7 +219,12 @@ class AgentRegistryDB:
                 if existing:
                     # Merge new data into existing
                     record = json.loads(existing["data_json"])
+                    terminal = {
+                        key: record.get(key)
+                        for key in ("status", "completed_at", "result", "error")
+                    } if record.get("status") == "cancelled" else {}
                     record.update(data)
+                    record.update(terminal)
                 else:
                     record = data
                     record["run_id"] = run_id

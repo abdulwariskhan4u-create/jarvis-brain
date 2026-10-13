@@ -8,6 +8,13 @@ description: >
 
 # Playwright Browser Automation
 
+## Choose the available browser interface first
+
+If the runtime exposes Playwright MCP tools, use those tools directly for navigation, snapshots and screenshots. Missing Node `require("playwright")` in the workspace does not mean the MCP is unavailable. Inspect the runtime tool inventory and perform one harmless navigation/snapshot before reporting a capability outage. Do not install a second browser MCP or switch to CLI solely because a local Node dependency is absent.
+
+The Node workflow below applies when a script-based test is needed and its dependencies are available. Record the exact tool/interface used with evidence; distinguish disconnected MCP, invalid tool arguments, stale page state and missing CLI dependencies.
+
+
 Write custom Playwright scripts, execute via universal executor. Scripts go to `/tmp` (works on macOS/Linux/Docker — all Jarvis target environments). Never write to skill or project directory.
 
 ## Setup (First Time Only)

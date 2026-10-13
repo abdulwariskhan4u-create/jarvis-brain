@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { apiFetch, getCsrfToken } from '../api'
+import { apiFetch, getCsrfToken } from '../api.js'
 import { useAuthStore } from '../stores/auth.js'
 
 /**
@@ -131,7 +131,7 @@ export function useChatStream() {
     } catch (err) {
       if (err.name !== 'AbortError') {
         lastError.value = err.message
-        onEvent({ type: 'error', data: { message: err.message } })
+        onEvent({ type: 'error', message: err.message })
       }
     } finally {
       isStreaming.value = false

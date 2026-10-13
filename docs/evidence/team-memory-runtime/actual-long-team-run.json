@@ -1,0 +1,637 @@
+{
+  "framework_commit": "ac7c2d0a",
+  "parent_before_pin": "d98e18a",
+  "environment": "local Jarvis backend8000, UI3000, Vite game3100; committed Ladybug0.17.1",
+  "team_session": "fd71cddd",
+  "observation_scope": "actual UI resumed existing7-member team, changes sent through root chat and per-agent monitor; operator interventions explicit",
+  "actual_failures": [
+    {
+      "jira": "SCRUM-91",
+      "finding": "filesystem read_multiple_files decoded PNG as UTF8 text",
+      "observed_tool_result": {
+        "chars": 8581,
+        "replacement_chars": 3604,
+        "nul_chars": 55
+      },
+      "status": "open"
+    },
+    {
+      "jira": "SCRUM-92",
+      "finding": "bare cat inherited agent RPC stdin; ping traffic prevented inactivity expiry",
+      "old_duration_ms": 427825.7,
+      "old_recovery": "operator SIGTERM exact cat process, then same-agent resume after broken pipe",
+      "fix": "DEVNULL for noninteractive shell stdin",
+      "new_actual_run": "76d30db9",
+      "new_duration_ms": 134.1,
+      "new_exit_code": 0,
+      "status": "live probe passed"
+    },
+    {
+      "jira": "SCRUM-93",
+      "finding": "mid-tool inbox factory looked at legacy workspace inbox instead of canonical session inbox",
+      "before_delivery_seconds": 224.803,
+      "after_delivery_seconds": 9.876,
+      "dedup_regression": "idle wake supplied a prompt and hook appended same unread envelope again",
+      "fix": "typed inbox-envelope IDs in internal channel; stage acknowledgement without duplicate append",
+      "new_run": "29bdf168",
+      "manual_checks": {
+        "running_message": "782778fc",
+        "idle_wake_message": "02b77549",
+        "each_occurrences_in_visible_user_history": 1
+      },
+      "status": "both paths observed once; Dev applied focus/persistence checklist"
+    },
+    {
+      "jira": "SCRUM-71",
+      "finding": "game Settings layout handoff passed27tests but manual click hid entire panel",
+      "root_cause": "settings pane nested under card hidden by settings-open CSS",
+      "team_fix": "pane moved outside card;28game tests passed",
+      "manual_after_fix": [
+        "desktop panel mounted",
+        "390px viewport measured; panel scroll reaches High-contrast",
+        "DONE clickable",
+        "focus restored to openSettings",
+        "saved contrast/reduced-motion/mute choices retained"
+      ],
+      "status": "Rev9 operator browser interaction checks passed on served application; overall gameplay acceptance remains open",
+      "keyboard_evidence": {
+        "viewport_width": 390,
+        "focused": "contrastSetting",
+        "before_center": "closeSettings",
+        "after_partial_fix_center": "contrastSetting",
+        "visual_problem_remains": "DONE still covers Reduce motion; single center assertion insufficient",
+        "team_change_revision": 7
+      },
+      "latest_manual_gap": "Snapshot880 live QE browser: overlay209.47px overflow:hidden, pane520px bottom850.77px, content459/459 no scroll range; programmatic scrollTop/focus is not native user scrolling acceptance. Rev9 delivered by root Jarvis to team; fix and operator manual test pending.",
+      "rev9_operator_manual": {
+        "desktop_viewport": [
+          1512,
+          724
+        ],
+        "mobile_viewport": [
+          390,
+          844
+        ],
+        "short_viewport": [
+          390,
+          300
+        ],
+        "mobile_pane_bounds": {
+          "x": 32,
+          "y": 162,
+          "width": 326,
+          "height": 520
+        },
+        "short_pane_bounds": {
+          "x": 32,
+          "y": 16,
+          "width": 326,
+          "height": 268
+        },
+        "tab_sequence": [
+          "volume",
+          "motionSetting",
+          "contrastSetting",
+          "closeSettings",
+          "muteSetting"
+        ],
+        "all_focus_center_hits_own_control": true,
+        "footer_overlap": 0,
+        "done_returns_focus": "openSettings",
+        "reload_persists": [
+          "muted",
+          "reducedMotion",
+          "highContrast"
+        ],
+        "short_viewport_keyboard_content_scroll_top": 7,
+        "dom_evaluation": "read-only; no scrollTop/focus assignments",
+        "screenshots": [
+          "real-team-rev9-desktop.png",
+          "real-team-rev9-mobile.png",
+          "real-team-rev9-short-viewport.png"
+        ],
+        "limitation": "browser-generated inputs, not physical Mac/mobile hardware; no600-second gameplay/boss/end validation"
+      }
+    },
+    {
+      "jira": "SCRUM-94",
+      "finding": "agent role header auto-activated as user fact: user is Devon working QE",
+      "root_cause": "team transcript routed through personal extractors; hardcoded user subject scope",
+      "fix": "agent-experience extractor plus code-enforced allowed kinds and agent-owned scope",
+      "tests": "2685 backend suite before final framework pin;92 host resume/pause/memory/compaction/subprocess tests pass on ac7c2d0a;144 framework spawn tests pass",
+      "local_remediation": "archived only incorrect record; approved procedural lesson preserved",
+      "status": "actual v8 fast-lane extraction verified",
+      "live_run": "d9d61350",
+      "live_candidates": [
+        {
+          "id": "2d2f1ba57c5143d0be15ed73772e5add",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "8edd2ae3762042c285e20d1bfcada21c",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "3bd715023eb4411c9ec11174c67bf45a",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "pending"
+        },
+        {
+          "id": "16a1c244acaf4a389caeaa4749e95ca5",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "6147b1eab6e5493b95f2577deb3c77ca",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "a2cf2a35eefe42819420d119aa6e0ffa",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "9e1463d9e7414199a4029aad706a8e55",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "73e1bf7892d44d379423a9e0e0e3ff1d",
+          "owner": "Sam [PM]",
+          "scope": "agent:Sam [PM]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "9e855e6ec1394fa09062b0ad59ed09ce",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "2e201c0733754672b42758677843bcb4",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "auto_approved"
+        },
+        {
+          "id": "a76fe640911d4d4283f20454f816ef93",
+          "owner": "Devon [QE]",
+          "scope": "agent:Devon [QE]",
+          "status": "auto_approved"
+        }
+      ],
+      "manual_procedure": "QE proposed eba9772baea448dc94b43b47d4027a41; pending, not manually approved"
+    },
+    {
+      "jira": "SCRUM-95",
+      "finding": "cancel killed uv launcher but Python77309 remained PPID1; same Dev continued writing Rev7 and reported30game tests after cancel",
+      "fix": "birth-checked owned descendant cleanup; explicit cancellation reason; await task; cancel stderr reader",
+      "tdd": "2 behavioural regressions failed before fix;5 targeted and144 spawn/inbox tests pass after",
+      "status": "same-team live retest pending after v8 restart",
+      "operator_intervention": "checkpoint and cleaned only acceptance-checkout runner trees;7 roots,zero survivors; unrelated worktrees untouched"
+    }
+  ],
+  "compact": {
+    "observed_real_pre_compaction_snapshots": [
+      806,
+      808
+    ],
+    "retained_in_actual_summary": [
+      "High-contrast HUD",
+      "reduced motion",
+      "workspace",
+      "600s goal",
+      "revision5"
+    ],
+    "continued_after_compact": "Dev implemented and tested actual game changes; no fake clock used",
+    "limit": "not proof that all long-task requirements or gameplay quality passed"
+  },
+  "cost": {
+    "baseline_token_usage_id": 2708,
+    "includes": "root, all team activity, compactor, memory extractor after local restart",
+    "pricing": "all observed gpt-6-luna rows use fallback; estimates are not billing",
+    "agents": [
+      {
+        "agent_name": "Avery [Designer]",
+        "calls": 30,
+        "input_tokens": 1999644,
+        "output_tokens": 5092,
+        "cache_hit_tokens": 1708544,
+        "estimated_cost": 2.91435
+      },
+      {
+        "agent_name": "Charlie [BA]",
+        "calls": 37,
+        "input_tokens": 2519891,
+        "output_tokens": 8362,
+        "cache_hit_tokens": 2268416,
+        "estimated_cost": 3.5478275
+      },
+      {
+        "agent_name": "Devon [QE]",
+        "calls": 164,
+        "input_tokens": 9419799,
+        "output_tokens": 18331,
+        "cache_hit_tokens": 8465152,
+        "estimated_cost": 13.1513675
+      },
+      {
+        "agent_name": "Jarvis",
+        "calls": 27,
+        "input_tokens": 1111316,
+        "output_tokens": 3694,
+        "cache_hit_tokens": 875776,
+        "estimated_cost": 1.72051
+      },
+      {
+        "agent_name": "Quinn [Dev]",
+        "calls": 186,
+        "input_tokens": 12407051,
+        "output_tokens": 34242,
+        "cache_hit_tokens": 10750464,
+        "estimated_cost": 17.9219675
+      },
+      {
+        "agent_name": "Sam [PM]",
+        "calls": 115,
+        "input_tokens": 6483078,
+        "output_tokens": 18104,
+        "cache_hit_tokens": 5634304,
+        "estimated_cost": 9.345855
+      },
+      {
+        "agent_name": "Sawyer [SA]",
+        "calls": 24,
+        "input_tokens": 1311955,
+        "output_tokens": 3734,
+        "cache_hit_tokens": 1058816,
+        "estimated_cost": 1.9937075
+      },
+      {
+        "agent_name": "Toby [DSO]",
+        "calls": 15,
+        "input_tokens": 889666,
+        "output_tokens": 2317,
+        "cache_hit_tokens": 728832,
+        "estimated_cost": 1.336295
+      },
+      {
+        "agent_name": "compactor",
+        "calls": 7,
+        "input_tokens": 140609,
+        "output_tokens": 12729,
+        "cache_hit_tokens": 20992,
+        "estimated_cost": 0.4525725
+      },
+      {
+        "agent_name": "memory-extractor",
+        "calls": 49,
+        "input_tokens": 202968,
+        "output_tokens": 7410,
+        "cache_hit_tokens": 2816,
+        "estimated_cost": 0.578
+      }
+    ],
+    "no_ab_savings_claim": true
+  },
+  "verification": {
+    "new_framework_spawn_and_stdin_suite": "28passed",
+    "new_dedup_tests": "3failed before fix;3passed after",
+    "lint": "passed",
+    "targeted_types": "passed",
+    "full_framework_types": "110diagnostics; not passed"
+  },
+  "open_gates": [
+    "game mobile Settings footer layout and full keyboard traversal after revision7",
+    "real600s survival, boss/end and offline game acceptance",
+    "game graphics quality acceptance",
+    "binary tool protection SCRUM91",
+    "historical status/context/CC bloat SCRUM89",
+    "autonomous shell timeout recovery policy",
+    "native internal crash root trigger; process isolation tested separately"
+  ],
+  "observed_qe_failure": {
+    "time": "13:37:26",
+    "response_stop_reason": "CANCELLED",
+    "error": "Broken pipe",
+    "root_cause": "unproven; durable stderr needed SCRUM90",
+    "recovery": "Jarvis UI resumed same member3051bbb5 after verifying latest error-state run"
+  },
+  "context_content_inspection": {
+    "recall_metrics": [
+      {
+        "snapshot": 808,
+        "agent": "Quinn [Dev]",
+        "messages": 130,
+        "recall_blocks": 0,
+        "recall_chars": 0,
+        "memory_bullets": 0,
+        "unique_bullets": 0,
+        "repeated_bullets": 0,
+        "largest_repeat_count": 0
+      },
+      {
+        "snapshot": 849,
+        "agent": "Quinn [Dev]",
+        "messages": 75,
+        "recall_blocks": 2,
+        "recall_chars": 2732,
+        "memory_bullets": 6,
+        "unique_bullets": 6,
+        "repeated_bullets": 0,
+        "largest_repeat_count": 1
+      },
+      {
+        "snapshot": 850,
+        "agent": "Devon [QE]",
+        "messages": 108,
+        "recall_blocks": 1,
+        "recall_chars": 756,
+        "memory_bullets": 2,
+        "unique_bullets": 2,
+        "repeated_bullets": 0,
+        "largest_repeat_count": 1
+      }
+    ],
+    "exact_tool_output_repeats": [
+      {
+        "tool": "read_text_file",
+        "chars": 4796,
+        "turns": [
+          4,
+          80
+        ]
+      },
+      {
+        "tool": "read_text_file",
+        "chars": 4282,
+        "turns": [
+          18,
+          82
+        ]
+      },
+      {
+        "tool": "playwright__browser_snapshot",
+        "chars": 1723,
+        "turns": [
+          22,
+          86
+        ]
+      },
+      {
+        "tool": "playwright__browser_snapshot",
+        "chars": 905,
+        "turns": [
+          30,
+          36
+        ]
+      },
+      {
+        "tool": "playwright__browser_snapshot",
+        "chars": 778,
+        "turns": [
+          44,
+          50
+        ]
+      }
+    ],
+    "interpretation": "Identical file output is candidate for conditional-version reads, not proof call was unnecessary. Browser snapshots may legitimately repeat. No exact repeated memory bullet observed in sampled snapshots."
+  },
+  "additional_open_gate": "Native0.17.1 worker unexpectedly exited again during link_entity at13:57:58; backend retained SQLite/FTS; native trigger not proven or fixed",
+  "latest_cost_scope": "team fd71cddd actual run IDs, token rows after2708; excludes root Jarvis, compactor and extraction outside those run IDs",
+  "latest_cost_snapshot": [
+    {
+      "agent": "Avery [Designer]",
+      "calls": 30,
+      "input_tokens": 1999644,
+      "cache_hit_tokens": 1708544,
+      "output_tokens": 5092,
+      "fallback_est_usd": 2.91435,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Charlie [BA]",
+      "calls": 37,
+      "input_tokens": 2519891,
+      "cache_hit_tokens": 2268416,
+      "output_tokens": 8362,
+      "fallback_est_usd": 3.5478275,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Devon [QE]",
+      "calls": 316,
+      "input_tokens": 19184171,
+      "cache_hit_tokens": 17351424,
+      "output_tokens": 37053,
+      "fallback_est_usd": 26.6416775,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Quinn [Dev]",
+      "calls": 252,
+      "input_tokens": 16964411,
+      "cache_hit_tokens": 14803968,
+      "output_tokens": 45019,
+      "fallback_est_usd": 24.3562575,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Sam [PM]",
+      "calls": 181,
+      "input_tokens": 10050800,
+      "cache_hit_tokens": 8630016,
+      "output_tokens": 29697,
+      "fallback_est_usd": 14.63645,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Sawyer [SA]",
+      "calls": 29,
+      "input_tokens": 1518544,
+      "cache_hit_tokens": 1173760,
+      "output_tokens": 4355,
+      "fallback_est_usd": 2.37271,
+      "pricing_source": "fallback"
+    },
+    {
+      "agent": "Toby [DSO]",
+      "calls": 15,
+      "input_tokens": 889666,
+      "cache_hit_tokens": 728832,
+      "output_tokens": 2317,
+      "fallback_est_usd": 1.336295,
+      "pricing_source": "fallback"
+    }
+  ],
+  "latest_tool_profile": {
+    "scope": "actual SSE sessionfd71cddd after baseline; deduplicated run_id+turn_idx; stream gaps and truncated bodies may undercount",
+    "unique_turns": 2165,
+    "tools": [
+      [
+        "email__send_email",
+        203
+      ],
+      [
+        "execute",
+        85
+      ],
+      [
+        "read_text_file",
+        80
+      ],
+      [
+        "mcp-atlassian__jira_add_comment",
+        80
+      ],
+      [
+        "playwright__browser_evaluate",
+        60
+      ],
+      [
+        "playwright__browser_snapshot",
+        56
+      ],
+      [
+        "playwright__browser_click",
+        47
+      ],
+      [
+        "filesystem__read_text_file",
+        33
+      ],
+      [
+        "meeting_room__speak",
+        25
+      ],
+      [
+        "playwright__browser_navigate",
+        23
+      ],
+      [
+        "meeting_room__get_meeting_status",
+        18
+      ],
+      [
+        "filesystem__read_multiple_files",
+        14
+      ],
+      [
+        "playwright__browser_resize",
+        14
+      ],
+      [
+        "mcp-atlassian__jira_search",
+        13
+      ],
+      [
+        "mcp-atlassian__jira_get_issue",
+        11
+      ],
+      [
+        "filesystem__directory_tree",
+        10
+      ],
+      [
+        "playwright__browser_close",
+        9
+      ],
+      [
+        "playwright__browser_network_requests",
+        9
+      ]
+    ],
+    "agent_tool_calls": {
+      "Toby [DSO]": 27,
+      "Charlie [BA]": 51,
+      "Sam [PM]": 139,
+      "Avery [Designer]": 67,
+      "Devon [QE]": 322,
+      "Sawyer [SA]": 43,
+      "Quinn [Dev]": 209
+    },
+    "explicit_tool_errors": {
+      "Toby [DSO]": 1,
+      "Avery [Designer]": 7,
+      "Devon [QE]": 14,
+      "Quinn [Dev]": 17,
+      "Sam [PM]": 4
+    }
+  },
+  "operator_capture_update": "Direct browser-tab screenshot and browser input APIs worked while native Mac capture was locked. Browser layout gate is no longer blocked on unlocking.",
+  "live_cancel_resume_acceptance": {
+    "framework_commit": "8ada76a0",
+    "team_session": "fd71cddd",
+    "first_failure": {
+      "run": "d9d61350",
+      "tool_result": "Could not cancel — not running or not found",
+      "cause": "MCP-local process maps do not contain backend-launched UI-resume workers"
+    },
+    "first_fixed_cancel": {
+      "run": "d9d61350",
+      "tool_seconds": 1.1,
+      "owned_tree_count_before": 62,
+      "live_survivors_after": 0,
+      "cleanup": false
+    },
+    "manual_resume": {
+      "via": "Dashboard inject UI",
+      "new_run": "5b8e19dc",
+      "same_team": true,
+      "same_agent": "Devon [QE]",
+      "same_workspace": true,
+      "retained_sqlite_context_snapshot_before": 898,
+      "context_bytes_before": 472534,
+      "observed_tools": [
+        "memory_search (3 calls)",
+        "browser_navigate",
+        "browser_snapshot"
+      ],
+      "approved_qe_lesson_recalled": "b2105cd4d9674d6f90026991ecd1baad",
+      "no_edit_email_or_jira_in_probe": true,
+      "empty_history_recall_proven": false
+    },
+    "second_fixed_cancel": {
+      "run": "5b8e19dc",
+      "tool_seconds": 3.4,
+      "monitor_changed_to_cancelled_without_reload": true,
+      "launcher_gone": true
+    },
+    "later_new_run": {
+      "run": "96b45821",
+      "cause": "new SA FYI e99edc6f and PM ACTION 7e3981f0; not duplicate Dashboard message 47051b29",
+      "old_cancelled_status_retained": true,
+      "checkpoint_propagation_requires_team_level_directive": true
+    },
+    "regression_tests": {
+      "framework_spawn": "121 passed",
+      "backend_lifecycle_bridge_memory": "129 passed; 2 deprecation warnings",
+      "frontend_unit": "281 passed",
+      "frontend_build": "passed; existing chunk-size warning",
+      "new_process_helper_typecheck": "passed"
+    },
+    "screenshots": [
+      "live-cross-process-cancel-failure.png",
+      "live-cross-process-cancel-success.png"
+    ],
+    "open_gates": [
+      "native graph worker crash SCRUM-96",
+      "empty-history memory causality",
+      "natural 600-second boss/end run",
+      "live reduced-motion visual comparison",
+      "production graphics acceptance",
+      "measure reduction in redundant context/tool calls"
+    ],
+    "status": "Draft; bounded manual evidence only; no full production/game acceptance"
+  }
+}

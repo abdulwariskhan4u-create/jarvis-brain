@@ -64,7 +64,7 @@ class RetrievalOrchestrator:
         # metric, measured 2026-06-17). An off-topic query whose nearest memory
         # is beyond this distance contributes nothing → no injection.
         min_sim = getattr(settings, "recall_min_similarity", 0.44)
-        max_hops = int(getattr(settings, "graph_max_hops", 1) or 1)
+        max_hops = int(getattr(settings, "graph_max_hops", 1))
         hub_max_df = float(getattr(settings, "hub_max_df", 0.5) or 0.5)
         self._dense = LadybugProvider(store, emb, max_distance=1.0 - float(min_sim),
                                       max_hops=max_hops, hub_max_df=hub_max_df)
@@ -274,6 +274,8 @@ class RetrievalOrchestrator:
     def _finalize(self, request, fused, *, level, cache_hit, budget, ledger, turn, now,
                   t0: float, dense_failed=False,
                   timings: dict[str, int | None] | None = None) -> RetrievalResult:
+        from services.retrieval.memory_validity import authorize_memory_evidence
+        fused = authorize_memory_evidence(self.db, fused, owner=request.owner_agent_name, now=now)
         # Recency/authority policy is applied HERE (not only pre-cache) so cache
         # hits get fresh recency at the current ``now``. apply_policy is
         # idempotent (re-derives order from rrf + boost(now), no cumulative

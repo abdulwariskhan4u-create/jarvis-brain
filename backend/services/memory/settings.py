@@ -208,8 +208,8 @@ def validate_settings_updates(updates: dict[str, Any]) -> list[str]:
             errors.append("recall_min_similarity must be a number in [0, 1]")
     if "graph_max_hops" in updates:
         v = updates["graph_max_hops"]
-        if not isinstance(v, int) or isinstance(v, bool) or not (1 <= v <= 3):
-            errors.append("graph_max_hops must be an integer in [1, 3]")
+        if not isinstance(v, int) or isinstance(v, bool) or not (0 <= v <= 3):
+            errors.append("graph_max_hops must be an integer in [0, 3]")
     if "hub_max_df" in updates:
         v = updates["hub_max_df"]
         if not isinstance(v, (int, float)) or isinstance(v, bool) or not (0.0 < float(v) <= 1.0):

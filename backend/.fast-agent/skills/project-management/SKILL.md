@@ -34,7 +34,7 @@ Read `references/JIRA_TRACKING.md` BEFORE creating any deliverable. When delegat
 |--------|------|---------|
 | Spawn agents | `spawn_team_members(roles, first_task)` | `roles="ba,dev,qe"` |
 | Check status | `get_team_status(session_id)` | Overview of all members |
-| Send message | `send_email(to, body, subject)` | `to="Minh - Dev"` or `to="all"` |
+| Send message | `send_email(to, body, subject)` | Use actual names returned by the current team |
 | Wait for dependency | `send_email(to, body, subject="[WAITING] ...")` | Auto-delivered when ready |
 | Check peer | `check_teammate_status(agent_name)` | `agent_name="all"` |
 | Create meeting | `create_meeting(agenda, participants, max_rounds)` | Use agent names |
@@ -44,10 +44,10 @@ Read `references/JIRA_TRACKING.md` BEFORE creating any deliverable. When delegat
 > **⚠️ Steps 1→2→3→4 IN ORDER. Do NOT spawn before creating the meeting.**
 
 **Step 1** — Determine: new project → create Jira epic | existing → `jira_search` + add sprint/stories
-**Step 2** — Create kickoff meeting with `max_rounds=6`:
-  - `objective`: **1 short sentence** — the goal/decision, e.g. "Kick off Sprint 1 for X project"
-  - `agenda`: project context, Jira link, role assignments, deliverables, DoD
-  - ⚠️ Do NOT cram role assignments or full context into the objective field!
+**Step 2** — Create kickoff meeting with `max_rounds=3`:
+  - `agenda`: short title describing the decision (max 120 characters).
+  - `description`: project context, Jira link, role assignments, deliverables and DoD.
+  - There is no `objective` parameter; use the actual tool schema.
 **Step 3** — Spawn agents → `spawn_team_members(roles="...", first_task="...")`
   - Include meeting_id + Jira link in `first_task` — members get everything they need
   - ⚠️ Do NOT send a separate email after spawning — `first_task` already delivers the assignment!
@@ -94,7 +94,7 @@ members never confirm receipt of the brief.
 ## Directive Handling
 
 When receiving directives from Jarvis (stakeholder):
-1. Acknowledge receipt immediately
+1. Check whether the message requires action; do not reply to FYI/no_reply or send an acknowledgment-only email
 2. Analyze → break into actionable tasks
 3. Disseminate via `send_email` or `create_meeting`
 4. Never forward raw stakeholder messages — translate into team-actionable format
@@ -102,10 +102,10 @@ When receiving directives from Jarvis (stakeholder):
 
 ## Team Monitoring
 
-1. `check_teammate_status(agent_name="all")` periodically
-2. Idle member without `[DONE]` report → send status check email
-3. Working too long without updates → check on them
-4. Track deliverables: ensure each output received before closing sprint
+1. React to delivered status, blocker and artifact events; do not poll status or inbox.
+2. Idle is a checkpoint, not proof of completion. Inspect the delivered outcomes before deciding next actions.
+3. Query status once when resolving a concrete ambiguity, then delegate only to affected owners.
+4. Track deliverables and acceptance evidence before closing the sprint.
 
 ## Sprint Review
 
@@ -114,6 +114,10 @@ Before reporting completion to stakeholder:
 2. Each member presents deliverables
 3. BA verifies requirements match, QE confirms test results
 4. Only after all agree (VERDICT: PASS) → report to stakeholder
+
+## Retrospective and durable learning
+
+After an accepted milestone or significant failure/rework, read `retrospective`. Reuse the checkpoint discussion, invite affected owners, publish evidence/action items, and have each owner propose a scoped procedure through memory_server. Pending proposals are not active memories; verify retrieval and application after approval. Do not open another kickoff to discuss a completed checkpoint.
 
 ## References
 
@@ -131,6 +135,6 @@ Before reporting completion to stakeholder:
 - **Don't do others' work** — delegate, don't implement
 - **Spawn selectively** — not every project needs all 7 members
 - **Be explicit** — specify files, directories, expected outputs
-- **Always use agent names** — "Hoa - BA" not "ba"
+- **Always use agent names** — names returned by the current team, not a static example roster
 - **End meetings promptly** — once goal achieved, VERDICT: PASS
 - **Emails auto-delivered** — no need to poll inbox, focus on monitoring and coordination

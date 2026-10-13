@@ -366,3 +366,80 @@ def test_migrate_on_embedding_change(monkeypatch):
     assert r == {"migrated": False, "reason": "deps_missing"}
     assert wiped == []                                   # did NOT wipe a healthy graph
     assert store[("memory", "indexed_embedding_revision")] == "BAAI/bge-m3"
+
+
+async def test_deadline_lookup_failure_does_not_kill_event_worker(monkeypatch):
+    import asyncio
+    from services.indexing.memory_index_worker import MemoryIndexWorker
+    from services.indexing import outbox_service as ob
+    worker = MemoryIndexWorker()
+    first = asyncio.Event()
+    event_loop = asyncio.get_running_loop()
+    recovered = asyncio.Event()
+    calls = []
+    async def process(**kwargs):
+        calls.append(1)
+        if len(calls) > 1:
+            recovered.set()
+        return {}
+    def deadline(**kwargs):
+        event_loop.call_soon_threadsafe(first.set)
+        raise RuntimeError('temporary database pool exhaustion')
+    monkeypatch.setattr(worker, 'process_pending', process)
+    monkeypatch.setattr(worker, '_sleep_delay', deadline)
+    task = asyncio.create_task(worker.run_loop())
+    try:
+        await asyncio.wait_for(first.wait(), 1)
+        assert not task.done()
+        ob.notify()
+        await asyncio.wait_for(recovered.wait(), 1)
+    finally:
+        worker.stop()
+        await task
+
+
+async def test_native_outage_never_exhausts_durable_index_intent(Session, monkeypatch):
+    from services.indexing.ladybug_worker import GraphUnavailable
+    _seed_episodic(Session)
+    worker = MemoryIndexWorker()
+    dense = _FakeDenseIndexer()
+    attempts = 0
+
+    def unavailable(points):
+        nonlocal attempts
+        attempts += 1
+        if attempts <= ob.DEFAULT_MAX_ATTEMPTS + 1:
+            raise GraphUnavailable('Native graph worker crashed (exitcode=-11)')
+        dense.points.extend(points)
+
+    dense.upsert_points = unavailable
+    monkeypatch.setattr(worker, '_dense', lambda: dense)
+    monkeypatch.setattr(worker, '_emb', lambda: _FakeEmbedding())
+    for i in range(ob.DEFAULT_MAX_ATTEMPTS + 1):
+        stats = await worker.process_pending(now=200 + i * 61)
+        assert stats == {'done': 0, 'deferred': 1, 'failed': 0}
+        with Session() as db:
+            row = db.query(MemoryIndexOutbox).one()
+            assert row.status == ob.PENDING
+            assert row.attempt_count == 0
+            assert fts_index.fts_search(db, owner_agent_name='Jarvis', query='compactor')
+    assert await worker.process_pending(now=200 + (ob.DEFAULT_MAX_ATTEMPTS + 1) * 61) == {
+        'done': 1, 'deferred': 0, 'failed': 0}
+    with Session() as db:
+        assert db.query(MemoryIndexOutbox).one().status == ob.DONE
+
+
+async def test_invalid_projection_remains_a_failed_attempt(Session, monkeypatch):
+    _seed_episodic(Session)
+    worker = MemoryIndexWorker()
+    dense = _FakeDenseIndexer()
+
+    def invalid(points):
+        raise ValueError('invalid embedding dimension')
+
+    dense.upsert_points = invalid
+    monkeypatch.setattr(worker, '_dense', lambda: dense)
+    monkeypatch.setattr(worker, '_emb', lambda: _FakeEmbedding())
+    assert await worker.process_pending(now=200) == {'done': 0, 'deferred': 0, 'failed': 1}
+    with Session() as db:
+        assert db.query(MemoryIndexOutbox).one().attempt_count == 1

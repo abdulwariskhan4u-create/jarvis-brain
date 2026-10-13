@@ -62,10 +62,10 @@ mcp:
   servers:
     yahoo-finance:
       command: "uv"
-      args: ["tool", "run", "yahoo-finance-mcp"]
+      args: ["tool", "run", "--with", "mcp<2", "yahoo-finance-mcp"]
     google-news:
       command: "uv"
-      args: ["tool", "run", "google-news-trends-mcp"]
+      args: ["tool", "run", "--with", "mcp<2", "--with", "selectolax<1", "google-news-trends-mcp"]
     time-service:
       command: "python"
       args: ["tools/time_server.py"]
@@ -129,7 +129,7 @@ mcp:
     # First-time browser install: `npx playwright install chromium`.
     playwright:
       command: "npx"
-      args: ["-y", "@playwright/mcp@0.0.75", "--headless"]
+      args: ["-y", "@playwright/mcp@0.0.75", "--headless", "--isolated"]
     serpapi:
       url: "https://mcp.serpapi.com/${SERPAPI_API_KEY}/mcp"
     sequential-thinking:

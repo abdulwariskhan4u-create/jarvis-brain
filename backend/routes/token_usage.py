@@ -69,6 +69,7 @@ async def get_token_metrics(
             "reasoning_tokens": 0,
             "est_cost": 0.0,
             "llm_calls": len(records),
+            "unverified_pricing_calls": 0,
         }
         
         # Per-agent breakdown
@@ -78,6 +79,9 @@ async def get_token_metrics(
         
         for r in records:
             cached = (r.cache_hit_tokens or 0) + (r.cache_read_tokens or 0)
+            source = r.pricing_source or "historical_unverified"
+            unverified = int(source != "configured")
+            totals["unverified_pricing_calls"] += unverified
             
             totals["input_tokens"] += r.input_tokens or 0
             totals["output_tokens"] += r.output_tokens or 0
@@ -113,6 +117,8 @@ async def get_token_metrics(
             if mname not in model_map:
                 model_map[mname] = {
                     "model": mname,
+                    "pricing_sources": [],
+                    "unverified_pricing_calls": 0,
                     "input_tokens": 0,
                     "output_tokens": 0,
                     "total_tokens": 0,
@@ -121,6 +127,9 @@ async def get_token_metrics(
                     "llm_calls": 0,
                 }
             md = model_map[mname]
+            if source not in md["pricing_sources"]:
+                md["pricing_sources"].append(source)
+            md["unverified_pricing_calls"] += unverified
             md["input_tokens"] += r.input_tokens or 0
             md["output_tokens"] += r.output_tokens or 0
             md["total_tokens"] += r.total_tokens or 0
@@ -141,6 +150,9 @@ async def get_token_metrics(
         
         return {
             "period": period,
+            "snapshot_id": max((r.id for r in records), default=0),
+            "window_start": now - seconds if seconds > 0 else 0,
+            "agent_filter": agent or "",
             "totals": totals,
             "agents": agents_list,
             "models": models_list,

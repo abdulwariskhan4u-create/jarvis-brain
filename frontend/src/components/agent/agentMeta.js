@@ -163,6 +163,7 @@ const STATUS_VAR = {
   starting:  'var(--status-starting)',
   blocked:   'var(--status-blocked)',
   error:     'var(--status-error)',
+  cancelled: 'var(--status-idle)',
 }
 export function statusColor(status) {
   return STATUS_VAR[status] || 'var(--status-unknown)'
@@ -181,6 +182,7 @@ const STATUS_LABEL = {
   starting:  'Starting',
   blocked:   'Blocked',
   error:     'Error',
+  cancelled: 'Cancelled',
 }
 export function statusLabel(status) {
   return STATUS_LABEL[status] || 'Unknown'

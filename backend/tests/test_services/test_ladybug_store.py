@@ -417,6 +417,26 @@ def test_probe_index_healthy_detects_dead_index(store):
     assert store.probe_index_healthy() is False          # …but NOT searchable → loud
 
 
+def test_reproject_all_records_keeps_native_index_searchable(store):
+    # Repair reprojects existing records; replacing every indexed node used to
+    # leave surviving SQLite/graph rows outside the native HNSW projection.
+    def upsert(i):
+        store.upsert_memory(record_id=f"reproject-{i}", owner="J", memory_type="semantic",
+                            subject_scope="user", content=f"offline acceptance fact {i}",
+                            embedding=_vec(i), authority="user_confirmed", confidence=0.9,
+                            created_at=1.0, valid_from=1.0)
+    for i in range(9):
+        upsert(i)
+    store.rebuild_vector_index()
+    for i in range(9):
+        upsert(i)
+    assert store.count("J") == 9
+    assert store.probe_index_healthy() is True
+    for i in range(9):
+        hits = store.vector_search(owner="J", query_embedding=_vec(i), limit=1)
+        assert hits and hits[0].record_id == f"reproject-{i}"
+
+
 def test_delete_to_empty_rebuilds_vector_index(store):
     # Regression (2026-06-22 prod recall outage): on LadybugDB 0.17.1, emptying the
     # Memory table (the "forget all memories" op) leaves the HNSW vector index dead

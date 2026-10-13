@@ -125,7 +125,13 @@ async def extract_and_store(record_id: str, *, generate_fn=None) -> bool:
         rec = db.get(MemoryRecord, record_id)
         if rec is None or rec.status != "active":
             return False
-        triples = await extract_triples(rec.content, generate_fn=generate_fn)
+        content, version = rec.content, rec.current_version
+        db.close()  # No DB connection is held across the provider request.
+        triples = await extract_triples(content, generate_fn=generate_fn)
+        rec = db.get(MemoryRecord, record_id)
+        if (rec is None or rec.status != "active"
+                or rec.content != content or rec.current_version != version):
+            return False
         # relations_json: "[]" is a TERMINAL "attempted, no triples" state (not
         # re-extracted) — distinct from NULL "never attempted" (a failed LLM
         # returns early below WITHOUT committing, so NULL is preserved → retried).
@@ -185,16 +191,24 @@ async def backfill_relations(owner: str | None = None, *, force: bool = False,
         if not rows:
             return 0
 
+        snapshots = [(rec.id, rec.content, rec.current_version) for rec in rows]
+        db.close()
         sem = asyncio.Semaphore(max(1, concurrency))
 
-        async def _one(rec):
+        async def _one(snapshot):
             async with sem:
-                triples = await extract_triples(rec.content, generate_fn=generate_fn)
-            return rec, triples
+                triples = await extract_triples(snapshot[1], generate_fn=generate_fn)
+            return snapshot, triples
 
-        results = await asyncio.gather(*[_one(r) for r in rows])
+        results = await asyncio.gather(*[_one(snapshot) for snapshot in snapshots])
         now = time.time()
-        for rec, triples in results:
+        processed = 0
+        for (record_id, content, version), triples in results:
+            rec = db.get(MemoryRecord, record_id)
+            if (rec is None or rec.status != "active"
+                    or rec.content != content or rec.current_version != version):
+                continue
+            processed += 1
             # SAME single-source rule as extract_and_store: triples → relations_json;
             # entities DERIVED from triples → entities_json, but only overwrite when
             # non-empty so an empty re-extract doesn't clobber a capture seed (M4).
@@ -205,7 +219,7 @@ async def backfill_relations(owner: str | None = None, *, force: bool = False,
                        aggregate_revision=rec.current_version, now=now, force=True)
         db.commit()
         logger.info("[MEMORY] KG backfill: %d memories (owner=%s, force=%s)",
-                    len(rows), owner or "*", force)
-        return len(rows)
+                    processed, owner or "*", force)
+        return processed
     finally:
         db.close()

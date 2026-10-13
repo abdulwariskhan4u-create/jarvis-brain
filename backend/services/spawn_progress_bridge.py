@@ -107,6 +107,7 @@ _EVENT_MAP = {
     "lifecycle_completed": ("spawn_lifecycle", "✅ {agent_name} completed"),
     "lifecycle_error": ("spawn_lifecycle", "❌ {agent_name} lifecycle error"),
     "lifecycle_cancelled": ("spawn_lifecycle", "🚫 {agent_name} cancelled"),
+    "cancelled": ("spawn_lifecycle", "🚫 {agent_name} cancelled"),
     "lifecycle_pre_cleanup": ("spawn_lifecycle", "🧹 {agent_name} cleaning up..."),
     "lifecycle_after_cleanup": ("agent_removed", "🗑️ {agent_name} removed"),
     # Pause/Resume events (from PauseSignalHandler in subprocess).
@@ -176,6 +177,7 @@ class SpawnProgressBridge:
         event_type_str = event_data.get("event_type", "")
         data = event_data.get("data", {})
         run_id = event_data.get("run_id") or data.get("run_id")
+        record = {}
 
         # Some subprocess lifecycle events report a role key (e.g. "pm")
         # instead of the display name. The registered spawn configuration is
@@ -209,6 +211,14 @@ class SpawnProgressBridge:
         # Kept for the legacy AgentDetail "Activity" tab and audit log; no
         # current monitor UI reads it as primary source.
         self._persist_activity(agent_name, event_type_str, data, event_data)
+        if record.get("status") == "cancelled" and event_type_str in {
+            "started", "idle", "resumed", "error", "result", "thinking",
+            "agent_completed", "agent_paused", "agent_resumed",
+            "lifecycle_completed", "lifecycle_error", "lifecycle_process_started",
+        }:
+            return  # Keep the audit trail, but never revive a cancelled run.
+        if event_type_str == "lifecycle_cancelled":
+            event_type_str = "cancelled"
 
         # 3. Broadcast via ActivityStreamManager (global SSE for monitoring).
         # tool_call / tool_result / response are intentionally NOT broadcast —
@@ -216,7 +226,10 @@ class SpawnProgressBridge:
         # canonical source for those. We still broadcast lifecycle events
         # (started/idle/error/agent_paused/agent_resumed/...) and "thinking"
         # so the running-status pulse appears between turns.
-        if event_type_str not in {"tool_call", "tool_result", "response"}:
+        # Token calls are broadcast once, after persistence, with their row ID
+        # and pricing provenance. Broadcasting the raw child event as well
+        # doubles the monitor's call/token totals.
+        if event_type_str not in {"tool_call", "tool_result", "response", "token_usage"}:
             self._broadcast_activity(agent_name, event_type_str, data, event_data)
 
         # 4. Upsert spawn_records on lifecycle events
@@ -1181,7 +1194,7 @@ class SpawnProgressBridge:
             from services.cron_scheduler import scheduler_stream_manager
 
             total = len(members)
-            errors = sum(1 for m in members if m.get("status") == "error")
+            errors = sum(1 for m in members if m.get("status") in {"error", "timeout", "cancelled", "killed"})
 
             # Detect "idled mid-meeting" — flips the framing of this notification.
             member_names = {
@@ -1204,7 +1217,12 @@ class SpawnProgressBridge:
                     + self._format_active_meetings_warning(active_meetings)
                 )
             elif errors:
-                title = f"⚠️ Team {team_name} completed ({errors}/{total} errors)"
+                title = f"⚠️ Team {team_name} needs attention ({errors}/{total} unsuccessful)"
+                preview, content = self._compose_team_result_body(
+                    team_name=team_name, agent_name=agent_name, result=result,
+                )
+            elif any(member.get("status") != "completed" for member in members):
+                title = f"⏸ Team {team_name} is idle ({total} agents) — review progress"
                 preview, content = self._compose_team_result_body(
                     team_name=team_name, agent_name=agent_name, result=result,
                 )
@@ -1801,6 +1819,8 @@ class SpawnProgressBridge:
         """
         if not orch:
             return
+        from services.worker_outcome_report import worker_result_state
+        previous_results = self._previous_worker_results(session_id)
         event_id = f"{session_id}:worker_cycle_closed:{close_seq}"
         if not self._insert_event(
             event_id, "worker_cycle_closed", session_id, team_name,
@@ -1808,12 +1828,12 @@ class SpawnProgressBridge:
                 {"agent_name": w.get("agent_name"),
                  "status": w.get("status"),
                  "run_id": w.get("run_id")} for w in workers
-            ]},
+            ], "worker_results": worker_result_state(workers)},
         ):
             return  # Conflict — another caller already emitted this close.
 
         orch_name = orch.get("agent_name", "")
-        report = self._format_worker_status_report(workers, orch_name)
+        report = self._format_worker_status_report(workers, orch_name, previous_results=previous_results)
         messages_dir = self._resolve_messages_dir(members)
         if not messages_dir:
             logger.warning(
@@ -1896,45 +1916,38 @@ class SpawnProgressBridge:
             team_name, event_id,
         )
 
+    def _previous_worker_results(self, session_id: str) -> dict | None:
+        """Use the last durable report, so restart does not replay old outcomes."""
+        try:
+            from core.agent_registry_db import _connect
+            with _connect() as conn:
+                row = conn.execute(
+                    "SELECT payload_json FROM team_events WHERE session_id=? "
+                    "AND event_type='worker_cycle_closed' ORDER BY created_at DESC, event_id DESC LIMIT 1",
+                    (session_id,),
+                ).fetchone()
+            if row is None:
+                return None
+            payload = json.loads(row[0])
+            if isinstance(payload.get("worker_results"), dict):
+                return payload["worker_results"]
+            return {worker.get("agent_name", "?"): worker for worker in payload.get("workers", [])}
+        except Exception:
+            logger.warning("[CYCLE] Previous worker result snapshot unavailable", exc_info=True)
+            return None
+
     def _format_worker_status_report(
         self, workers: list[dict], orch_name: str,
+        *, previous_results: dict | None = None,
     ) -> str:
         """Build the markdown status report sent to the orchestrator's inbox on
         ``worker_cycle_closed``. Preserves the meeting-aware framing
         from the prior implementation (b61af7db incident) — if a member
         is still mid-meeting the header reframes to "NOT done".
         """
-        status_icons = {
-            "idle": "✅", "completed": "✅",
-            "error": "❌", "timeout": "⏰", "cancelled": "🚫",
-        }
+        from services.worker_outcome_report import build_worker_report
         member_names = {w.get("agent_name", "") for w in workers if w.get("agent_name")}
         member_names.add(orch_name)
-        active_meetings = self._active_meetings_with_members(member_names)
-
-        if active_meetings:
-            header = (
-                f"⏳ **Team Status Update** — members are idle but "
-                f"{len(active_meetings)} meeting(s) still open. Team is NOT done."
-            )
-        else:
-            header = (
-                "📋 **Team Status Update** — All members have stopped running. "
-                "Idle may mean waiting for approval or input; review outcomes before declaring completion."
-            )
-        lines = [header, "", "| Member | Status | Summary |", "|--------|--------|---------|"]
-        for w in workers:
-            name = w.get("agent_name", "?")
-            status = w.get("status", "?")
-            icon = status_icons.get(status, "❓")
-            if status == "error":
-                summary = (w.get("error", "") or "Unknown error")[:80]
-            else:
-                summary = (w.get("result", "") or "No output")[:80]
-            summary = summary.replace("\n", " ").replace("|", "/").strip()
-            lines.append(f"| {name} | {icon} {status} | {summary} |")
-        if active_meetings:
-            lines.append(self._format_active_meetings_warning(active_meetings))
-        else:
-            lines.append("\nReview outputs and decide next actions.")
-        return "\n".join(lines)
+        meetings = self._active_meetings_with_members(member_names)
+        warning = self._format_active_meetings_warning(meetings) if meetings else ""
+        return build_worker_report(workers, previous=previous_results, meeting_warning=warning)

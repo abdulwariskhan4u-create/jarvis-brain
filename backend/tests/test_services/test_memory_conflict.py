@@ -298,3 +298,37 @@ def test_render_block_stamps_created_date(Session):
     assert "(saved 2025-06-30)" in block
     assert "user works at NovaCorp" in block
     assert "newer saved date wins" in block           # the tiebreak instruction
+
+
+async def test_judge_releases_db_connection_before_waiting(tmp_path, monkeypatch):
+    from sqlalchemy import select, func
+    import core.database as cd
+    engine = create_engine(f'sqlite:///{tmp_path / "pool.db"}',
+                          pool_size=1, max_overflow=0, pool_timeout=0.1)
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine)
+    monkeypatch.setattr(cd, 'get_db_session', factory)
+    old = _mk(factory, 'user works at OldCorp', created=100)
+    new = _mk(factory, 'user works at NewCorp', created=200)
+    async def judge(prompt):
+        with factory() as other:
+            assert other.scalar(select(func.count()).select_from(MemoryRecord)) == 2
+        return '{"superseded": [1]}'
+    try:
+        assert await conflict.resolve_conflicts(new, generate_fn=judge,
+                                               embed_fn=_embed_all_same) == [old]
+    finally:
+        engine.dispose()
+
+
+async def test_judge_does_not_apply_decision_to_changed_candidate(Session):
+    old = _mk(Session, 'user works at OldCorp', created=100)
+    new = _mk(Session, 'user works at NewCorp', created=200)
+    async def judge(prompt):
+        with Session() as db:
+            db.get(MemoryRecord, old).content = 'user enjoys both jobs'
+            db.commit()
+        return '{"superseded": [1]}'
+    assert await conflict.resolve_conflicts(new, generate_fn=judge,
+                                           embed_fn=_embed_all_same) == []
+    assert _status(Session, old) == 'active'

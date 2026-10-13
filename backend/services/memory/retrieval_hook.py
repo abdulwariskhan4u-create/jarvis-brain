@@ -90,7 +90,9 @@ def is_injected_memory(msg) -> bool:
 
 def _latest_user_text(delta_messages) -> str:
     for msg in reversed(list(delta_messages or [])):
-        if str(getattr(msg, "role", "")) == "user" and not is_injected_memory(msg):
+        if (str(getattr(msg, "role", "")) == "user"
+                and not getattr(msg, "tool_results", None)
+                and not is_injected_memory(msg)):
             txt = _msg_text(msg).strip()
             if txt:
                 return txt
@@ -248,11 +250,10 @@ def create_memory_retrieval_hooks():
                 return
             agent = runner._agent
             owner = normalize_agent_name(getattr(agent, "name", "") or "")
-            # The delta is usually the user's text turn, but after a tool call it
-            # can be a tool-result with no text → fall back to the last real user
-            # message in history so recall still fires on post-tool turns.
-            query = _latest_user_text(delta_messages) or \
-                _latest_user_text(getattr(agent, "message_history", []) or [])
+            # Only new user direction triggers recall/capture. Tool-loop steps
+            # retain already recalled blocks in history; do not count them as
+            # additional user turns or repeatedly extract the same requirement.
+            query = _latest_user_text(delta_messages)
             if not owner or not query:
                 return
 

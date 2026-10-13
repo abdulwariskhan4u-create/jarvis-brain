@@ -48,11 +48,17 @@ When you receive 🔔 MEETING INVITE → follow the `meeting-participant` skill 
 - **Do NOT reply just to acknowledge.** Use `no_reply=True` for FYI messages.
 - **Avoid email ping-pong.** If you need back-and-forth, schedule a meeting instead of emailing.
 
-## Completion rules (REQUIRED)
+## Completion reports
 
-BEFORE going idle or completing work, you MUST:
-1. Send a `[DONE]` report to the PM: `send_email(to="Linh - PM", subject="[DONE] <deliverable summary>", body="<list of deliverables, files, outcomes, open items>")`
-2. NEVER go idle without sending the report — this is **required**.
+Finish the turn with a concise result: deliverable, exact artifact paths, checks
+actually performed, and remaining gates. The runtime persists this response and
+automatically delivers the worker-cycle report to this team's PM. This requires
+no email tool call. Do not send a duplicate DONE email or an acknowledgement.
+
+Use a direct email only for an actionable blocker, review request, approval,
+or handoff that another member needs before the worker cycle closes. Resolve
+the recipient from the current team roster; never use a hard-coded PM name.
+A user request for a context-only response does not prevent automatic reporting.
 
 ## Approval escalation
 

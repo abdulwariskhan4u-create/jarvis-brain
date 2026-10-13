@@ -270,11 +270,21 @@ async def resolve_conflicts(record_id: str, *, generate_fn=None, embed_fn=None,
         # SSE until it finished. to_thread keeps the loop responsive. Cross the
         # thread boundary with plain tuples, not the live ORM rows (review #2).
         gate_cands = [_GateCand(c.id, c.content, c.owner_agent_name) for c in cands]
-        gated = await asyncio.to_thread(_gate, rec.content, gate_cands, embed_fn)
+        new_content, owner = rec.content, rec.owner_agent_name
+        # Release the read transaction BEFORE embedding/LLM waits. A capture
+        # burst otherwise holds every pool connection while nested settings
+        # and index work need another connection, stalling the whole backend.
+        db.close()
+        gated = await asyncio.to_thread(_gate, new_content, gate_cands, embed_fn)
         if not gated:
             return []
-        idxs = await _judge(rec.content, gated, generate_fn)
+        idxs = await _judge(new_content, gated, generate_fn)
         if not idxs:
+            return []
+        # Re-open a short write session and reject stale decisions: memory
+        # may have changed or been superseded while the judge was running.
+        current = db.get(MemoryRecord, record_id)
+        if current is None or current.status != "active" or current.content != new_content:
             return []
         from services.memory.memory_service import MemoryService
         svc = MemoryService(db)
@@ -282,13 +292,18 @@ async def resolve_conflicts(record_id: str, *, generate_fn=None, embed_fn=None,
         for i in idxs:
             cid = gated[i - 1].id
             try:
-                svc.supersede_memory(cid, owner_agent_name=rec.owner_agent_name, now=now)
+                candidate = db.get(MemoryRecord, cid)
+                if (candidate is None or candidate.status != "active"
+                        or candidate.owner_agent_name != owner
+                        or candidate.content != gated[i - 1].content):
+                    continue
+                svc.supersede_memory(cid, owner_agent_name=owner, now=now)
                 superseded.append(cid)
             except Exception as exc:  # noqa: BLE001 — one bad supersede never drops the rest
                 logger.warning("[MEMORY] conflict supersede(%s) failed: %s", cid, exc)
         if superseded:
             logger.info("[MEMORY] conflict resolved: new=%s superseded=%s",
-                        rec.id, superseded)
+                        record_id, superseded)
         return superseded
     except Exception as exc:  # noqa: BLE001 — best-effort, never break a capture
         logger.warning("[MEMORY] resolve_conflicts(%s) failed: %s", record_id, exc)

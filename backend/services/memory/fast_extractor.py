@@ -19,6 +19,10 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services.memory.settings import MemorySettings
 
 logger = logging.getLogger("memory.fast_extractor")
 
@@ -75,16 +79,21 @@ class ExtractedMemory:
     # is DERIVED from these by services.memory.confidence — never trusted raw.
     evidence_excerpt: str = ""
     reasoning_type: str = "direct"
+    learning: dict | None = None
 
     @property
     def memory_type(self) -> str:
         return _TYPE_MAP.get(self.kind, "semantic")
 
 
-def parse_extraction(raw: str) -> list[ExtractedMemory]:
-    """Tolerant parse of the LLM's JSON array. A malformed reply yields [] (the
-    extractor is best-effort; a bad batch is dropped, not crashed)."""
+def parse_extraction(raw: str, *, strict: bool = False) -> list[ExtractedMemory]:
+    """Parse the LLM's array; durable capture opts into errors on bad batches.
+
+    Best-effort callers retain the default empty result on malformed replies.
+    """
     if not raw:
+        if strict:
+            raise ValueError("Invalid extraction: empty response")
         return []
     text = raw.strip()
     if text.startswith("```"):                     # strip code fences if present
@@ -92,24 +101,33 @@ def parse_extraction(raw: str) -> list[ExtractedMemory]:
         text = text[text.find("["):] if "[" in text else text
     start, end = text.find("["), text.rfind("]")
     if start == -1 or end == -1 or end < start:
+        if strict:
+            raise ValueError("Invalid extraction: expected a JSON array")
         return []
     try:
         items = json.loads(text[start:end + 1])
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
+        if strict:
+            raise ValueError("Invalid extraction: malformed JSON array") from exc
         return []
     out: list[ExtractedMemory] = []
     for it in items if isinstance(items, list) else []:
         if not isinstance(it, dict):
+            if strict:
+                raise ValueError("Invalid extraction: expected lesson objects")
             continue
         content = str(it.get("content") or "").strip()
         if not content:
+            if strict:
+                raise ValueError("Invalid extraction: missing lesson content")
             continue
         ents = [e for e in (it.get("entities") or []) if isinstance(e, dict) and e.get("name")]
         excerpt = str(it.get("evidence_excerpt") or "").strip()
         rtype = str(it.get("reasoning_type") or "direct").lower().strip()
         out.append(ExtractedMemory(kind=str(it.get("kind") or "fact").lower().strip(),
                                    content=content, entities=ents,
-                                   evidence_excerpt=excerpt, reasoning_type=rtype))
+                                   evidence_excerpt=excerpt, reasoning_type=rtype,
+                                   learning=it.get("learning") if isinstance(it.get("learning"), dict) else None))
     return out
 
 
@@ -193,7 +211,11 @@ def _snippet_ref(snippet: str) -> str:
     return "snippet:" + hashlib.sha1((snippet or "").encode("utf-8")).hexdigest()[:12]
 
 
-def _persist_candidates(owner, mems, cfg, candidate_type: str, snippet: str = "") -> list[str]:
+def _persist_candidates(
+    owner: str, mems: list[ExtractedMemory], cfg: MemorySettings,
+    candidate_type: str, snippet: str = "", *,
+    subject_scope: str = "user",
+) -> list[str]:
     """Propose extracted memories as candidates (ADD-only path). Shared by the
     fast and slow lanes.
 
@@ -229,18 +251,15 @@ def _persist_candidates(owner, mems, cfg, candidate_type: str, snippet: str = ""
                              "source_hash": hashlib.sha256(excerpt.encode("utf-8")).hexdigest()[:16],
                              "source_timestamp": now, "authority": "agent_observed"}]
                            if excerpt_ok else [])
-                # subject_scope="user" is intentional and asymmetric vs the
-                # compactor lane (which uses "agent:<owner>"): the fast lane
-                # extracts facts/preferences ABOUT THE USER from their messages,
-                # while the slow/compactor lane captures the AGENT's own
-                # observations. Different subjects → exact-dedup (keyed on
-                # subject_scope) correctly does NOT collapse them.
+                # Callers own attribution: personal chat targets the user;
+                # team transcripts target the agent, regardless of LLM output.
                 cand = cnd.create_candidate(
                     db, owner_agent_name=owner, candidate_type=candidate_type,
                     payload={"memory_type": m.memory_type, "content": m.content,
-                             "subject_scope": "user", "authority": "agent_observed",
+                             "subject_scope": subject_scope, "authority": "agent_observed",
                              "confidence": verdict.confidence, "entities": m.entities,
                              "reasoning_type": m.reasoning_type, "excerpt_ok": excerpt_ok,
+                             "learning": m.learning,
                              "confidence_method": verdict.method},
                     confidence=verdict.confidence, sources=sources,
                     # Fabricated/unverified evidence never auto-saves — a human vets it.
@@ -400,7 +419,12 @@ def fire_slow_extraction_from_history(agent_name: str, history) -> None:
 
         async def _bg():
             try:
-                await run_slow_extraction(owner, snippet, cfg)
+                import os
+                if os.environ.get("TEAM_MY_NAME"):
+                    from services.memory.spawn_hooks import capture_segment
+                    await capture_segment(owner, snippet, "slow")
+                else:
+                    await run_slow_extraction(owner, snippet, cfg)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("[MEMORY] slow extraction failed: %s", exc)
         asyncio.create_task(_bg())

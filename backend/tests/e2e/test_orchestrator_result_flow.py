@@ -249,6 +249,7 @@ async def test_orchestrator_rollup_flows_through_full_consumer_stack(
         def __init__(self, **kwargs):
             captured.update(kwargs)
             self.id = 1
+            self.created_at = time.time()
 
     with _patch("core.database.NotificationModel", _Notif), \
             _patch("core.database.get_db_session", return_value=MagicMock()), \
@@ -257,7 +258,7 @@ async def test_orchestrator_rollup_flows_through_full_consumer_stack(
             team_name=team_name,
             agent_name=agent_name,
             result=stored["result"],
-            members=[{"agent_name": agent_name, "status": "idle"}],
+            members=[{"agent_name": agent_name, "status": "completed"}],
         )
 
     assert "BUG" not in captured["preview"], (

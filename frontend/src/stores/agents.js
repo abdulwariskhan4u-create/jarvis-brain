@@ -12,6 +12,13 @@ export const useAgentsStore = defineStore('agents', () => {
   const isLoading = ref(false)
   const error = ref(null)
   const recentEvents = ref([]) // last 50 events for activity feed
+  const tokenUsageEvents = ref(new Map()) // bounded persisted rows for REST/SSE reconciliation
+  const activityReconnectRevision = ref(0)
+  let activityWasConnected = false
+  function activityConnected() {
+    if (activityWasConnected) activityReconnectRevision.value++
+    activityWasConnected = true
+  }
   const tokenMetrics = ref(new Map()) // per-agent token accumulation from SSE
 
   // --- Computed ---
@@ -179,6 +186,7 @@ export const useAgentsStore = defineStore('agents', () => {
         // to running.
         upsertAgentPreservingPauseCycle(agent_name, {
           session_id: eventSessionId,
+          ...(event.run_id ? { run_id: event.run_id } : {}),
           status: 'running',
           lastAction: { message: event.message, timestamp: event.timestamp },
         })
@@ -222,6 +230,19 @@ export const useAgentsStore = defineStore('agents', () => {
           lastAction: { message: event.message || 'Error', timestamp: event.timestamp },
         })
         break
+
+      case 'cancelled': {
+        const current = findAgentByIdentity([...agents.value.values()], agent_name, eventSessionId)
+        // A cancel acknowledgement for the previous incarnation may arrive
+        // after a new run starts; it must not cancel that new run in the UI.
+        if (event.run_id && current?.run_id && event.run_id !== current.run_id) break
+        upsertAgent(agent_name, {
+          session_id: eventSessionId,
+          status: 'cancelled',
+          lastAction: { message: event.message || 'Cancelled', timestamp: event.timestamp },
+        })
+        break
+      }
 
       case 'idle':
         upsertAgentPreservingPauseCycle(agent_name, {
@@ -341,6 +362,12 @@ export const useAgentsStore = defineStore('agents', () => {
       case 'token_usage': {
         // Accumulate token metrics per agent from SSE
         const d = event.data || {}
+        if (Number.isInteger(d.usage_id)) {
+          if (tokenUsageEvents.value.has(d.usage_id)) break
+          tokenUsageEvents.value.set(d.usage_id, { ...d, agent_name })
+          if (tokenUsageEvents.value.size > 2048) tokenUsageEvents.value.delete(tokenUsageEvents.value.keys().next().value)
+          tokenUsageEvents.value = new Map(tokenUsageEvents.value)
+        }
         const prev = tokenMetrics.value.get(eventKey) || {
           total_tokens: 0, input_tokens: 0, output_tokens: 0,
           cached_tokens: 0, reasoning_tokens: 0, est_cost: 0, llm_calls: 0,
@@ -353,6 +380,7 @@ export const useAgentsStore = defineStore('agents', () => {
           reasoning_tokens: prev.reasoning_tokens + (d.reasoning_tokens || 0),
           est_cost: prev.est_cost + (d.est_cost || 0),
           llm_calls: prev.llm_calls + 1,
+          unverified_pricing_calls: (prev.unverified_pricing_calls || 0) + (d.pricing_source === 'configured' ? 0 : 1),
           model: d.model || prev.model,
         })
         tokenMetrics.value = new Map(tokenMetrics.value) // trigger reactivity
@@ -512,6 +540,9 @@ export const useAgentsStore = defineStore('agents', () => {
     error,
     recentEvents,
     tokenMetrics,
+    tokenUsageEvents,
+    activityReconnectRevision,
+    activityConnected,
     fetchAgents,
     processEvent,
     upsertAgent,

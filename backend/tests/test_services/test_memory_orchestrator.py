@@ -112,3 +112,34 @@ async def test_ledger_prevents_duplicate_injection(db):
                              now=200.0, agent_requested=True, ledger=led, turn=2)
     # already in ledger → not re-injected
     assert r2.evidence == []
+
+
+async def test_cached_memory_expires_even_without_an_index_revision_change(db):
+    rec = db.get(MemoryRecord, 'm1')
+    rec.valid_until = 100.5
+    db.commit()
+    orch = RetrievalOrchestrator(db, _settings())
+    request = RetrievalRequest(owner_agent_name='Jarvis', query='compactor')
+    first = await orch.retrieve(request, now=100.0, agent_requested=True)
+    assert [item.record_id for item in first.evidence] == ['m1']
+    second = await orch.retrieve(request, now=100.5, agent_requested=True)
+    assert second.cache_hit
+    assert second.evidence == []
+
+
+async def test_stale_native_projection_cannot_recall_archived_or_foreign_memory(db, monkeypatch):
+    from unittest.mock import AsyncMock
+    from services.retrieval.contracts import Evidence, EvidenceScores, EvidenceSource
+    rec = db.get(MemoryRecord, 'm1')
+    rec.status = 'archived'
+    db.commit()
+    orch = RetrievalOrchestrator(db, _settings())
+    stale = Evidence(evidence_id='memory:m1', record_id='m1', owner_agent_name='Jarvis',
+                     memory_type='semantic', excerpt=rec.content,
+                     source=EvidenceSource('memory_record', 'm1'), scores=EvidenceScores(dense_rank=1),
+                     authority='user_confirmed', confidence=1)
+    monkeypatch.setattr(orch._dense, 'is_available', lambda: True)
+    monkeypatch.setattr(orch._dense, 'search', AsyncMock(return_value=[stale]))
+    result = await orch.retrieve(RetrievalRequest(owner_agent_name='Jarvis', query='compactor'),
+                                 now=100.0, agent_requested=True)
+    assert result.evidence == []

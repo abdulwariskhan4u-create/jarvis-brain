@@ -15,10 +15,10 @@ export function buildRenderRows(turns) {
   let prevRun = null
   for (const t of turns || []) {
     if (t.run_id && t.run_id !== prevRun) {
-      rows.push({ kind: 'run', run_id: t.run_id, ts: t.ts, key: `run_${t.turn_idx}` })
+      rows.push({ kind: 'run', run_id: t.run_id, ts: t.ts, key: `run_${JSON.stringify([t.run_id, t.turn_idx])}` })
       prevRun = t.run_id
     }
-    rows.push({ kind: 'turn', turn: t, key: `t_${t.turn_idx}` })
+    rows.push({ kind: 'turn', turn: t, key: `turn_${JSON.stringify([t.run_id || null, t.turn_idx])}` })
   }
   return rows
 }

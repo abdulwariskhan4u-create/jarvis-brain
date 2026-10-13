@@ -7,6 +7,7 @@
  * Selection is event-driven via @select(meetingId).
  */
 import { computed } from 'vue'
+import { meetingOutcome, meetingRound } from '../../utils/meetingPresentation.js'
 import { normalizeTs } from '../../utils/timeFormat.js'
 import { useLang } from '../../composables/useLang'
 
@@ -31,9 +32,9 @@ const tabs = computed(() => [
 
 function statusInfo(m) {
   if (m.ended) {
-    if (m.outcome === 'consensus')  return { color: 'var(--success)', label: t('meetings.statusConsensus'), icon: '✓' }
-    if (m.outcome === 'max_rounds') return { color: 'var(--text-muted)', label: t('meetings.statusMaxRoundsShort'), icon: '◼' }
-    return { color: 'var(--text-muted)', label: t('meetings.statusEnded'), icon: '◼' }
+    const outcome = meetingOutcome(m.outcome)
+    const color = outcome.tone === 'neutral' ? 'var(--text-muted)' : `var(--${outcome.tone})`
+    return { color, label: t(outcome.labelKey), icon: outcome.icon }
   }
   if (m.started) return { color: 'var(--success)', label: t('meetings.statusLive'), icon: '●' }
   return { color: 'var(--warning)', label: t('meetings.statusWaiting'), icon: '○' }
@@ -156,7 +157,7 @@ const hasMeetings = computed(() => props.meetings.length > 0)
               }"
             >{{ statusInfo(m).icon }} {{ statusInfo(m).label }}</span>
             <span v-if="m.current_round" class="ml-round">
-              R{{ m.current_round }}<span v-if="m.max_rounds">/{{ m.max_rounds }}</span>
+              R{{ meetingRound(m) }}<span v-if="m.max_rounds">/{{ m.max_rounds }}</span>
             </span>
             <span v-if="m.turn_count" class="ml-turncount">{{ t('meetings.turnsCount', { n: m.turn_count }) }}</span>
             <span v-if="m.current_speaker && !m.ended" class="ml-speaker">

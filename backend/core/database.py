@@ -233,6 +233,7 @@ class TokenUsageRecord(Base):
     
     # Estimated cost in USD (from model_pricing.yaml)
     est_cost = Column(Float, default=0.0)
+    pricing_source = Column(String(30), nullable=True)
     
     created_at = Column(Float, default=lambda: datetime.now().timestamp(), index=True)
 
@@ -1050,6 +1051,7 @@ def init_db():
             "ALTER TABLE memory_records ADD COLUMN relations_json TEXT",
             "ALTER TABLE token_usage ADD COLUMN category VARCHAR(40) DEFAULT 'agent'",
             "ALTER TABLE token_usage ADD COLUMN source_event_id VARCHAR(100)",
+            "ALTER TABLE token_usage ADD COLUMN pricing_source VARCHAR(30)",
         ]
         for sql in migrations:
             try:

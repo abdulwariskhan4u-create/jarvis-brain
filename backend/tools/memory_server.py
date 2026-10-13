@@ -92,21 +92,30 @@ def memory_fetch(evidence_ids: list[str], ctx: Context = None) -> dict:
 
 
 @mcp.tool()
-def memory_remember(content: str, memory_type: str = "semantic", pinned: bool = False, ctx: Context = None) -> dict:
+def memory_remember(content: str, memory_type: str = "semantic", pinned: bool = False,
+                    learning: dict | None = None, ctx: Context = None) -> dict:
     """STORE a durable fact or preference into memory (this SAVES — use
     memory_search to RECALL what is already stored). Call this when the user
     states something worth keeping ("remember that I…", "from now on…", a
     durable personal fact). ``content`` is the fact to store, phrased clearly.
     ``memory_type``: "semantic" (facts about the user/world), "pinned"
     (standing instructions), "procedural" (reusable workflows). It creates a
-    candidate that auto-saves or awaits approval per policy."""
+    candidate that auto-saves or awaits approval per policy.
+
+    Team members may save only a concise tested lesson (max 600 chars), not task
+    progress, acceptance checklists, generic advice or meeting transcripts.
+    Supply ``learning`` with problem, change, applies_when, outcome_excerpt;
+    each is a nonempty string <=400 chars. outcome_excerpt must quote an observed
+    improvement from YOUR persisted history. Missing evidence returns not_saved;
+    keep the experiment in task history until verified. No default expiry.
+    Search existing lessons first and reuse them instead of saving paraphrases."""
     owner = _owner(ctx)
     if not owner:
         return {"error": "no bound agent identity; memory unavailable"}
     try:
         return rpc_call("memory.remember", {
             "agent_name": owner, "content": content,
-            "memory_type": memory_type, "pinned": pinned,
+            "memory_type": memory_type, "pinned": pinned, "learning": learning,
         })
     except RuntimeRpcError as exc:
         return _bridge_error(exc)
@@ -126,15 +135,19 @@ def memory_forget(memory_id: str, reason: str = "", ctx: Context = None) -> dict
 
 
 @mcp.tool()
-def procedure_propose(title: str, steps: str, ctx: Context = None) -> dict:
+def procedure_propose(title: str, steps: str, learning: dict | None = None,
+                      ctx: Context = None) -> dict:
     """Propose a reusable procedure/Skill (always requires approval; never
-    auto-published)."""
+    auto-published). Requires the same verified learning fields as memory_remember:
+    problem, change, applies_when, outcome_excerpt. Untested plans belong in tasks.
+    Keep title + steps <=600 characters; cite the observed improvement verbatim."""
     owner = _owner(ctx)
     if not owner:
         return {"error": "no bound agent identity; memory unavailable"}
     try:
         return rpc_call("memory.procedure_propose", {"agent_name": owner,
-                                                     "title": title, "steps": steps})
+                                                     "title": title, "steps": steps,
+                                                     "learning": learning})
     except RuntimeRpcError as exc:
         return _bridge_error(exc)
 

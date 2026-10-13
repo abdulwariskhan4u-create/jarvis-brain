@@ -243,7 +243,7 @@ class LadybugStore:
                       subject_scope: str, content: str, embedding: list[float],
                       authority: str, confidence: float, created_at: float,
                       valid_from: float, status: str = "active") -> None:
-        """Replace the Memory node for ``record_id`` (ADD-only/idempotent index).
+        """Project one Memory without replacing an unchanged indexed vector.
 
         NOTE: LadybugDB forbids ``SET`` on a vector-indexed property, so an
         embedding change requires DELETE+CREATE — which DROPS this node's
@@ -255,18 +255,29 @@ class LadybugStore:
             raise ValueError(f"embedding must be {EMBED_DIM}-d, got "
                              f"{0 if embedding is None else len(embedding)}")
         with self._lock:
+            from array import array
+            previous = self._exec("MATCH (m:Memory {id: $id}) RETURN m.emb", {"id": record_id})
+            unchanged_vector = previous.has_next() and previous.get_next()[0] == array("f", embedding).tolist()
+            params = {"id": record_id, "owner": owner, "mt": memory_type, "scope": subject_scope,
+                      "content": content, "emb": embedding, "auth": authority,
+                      "conf": float(confidence), "ca": float(created_at),
+                      "vf": float(valid_from), "status": status}
             self._exec("BEGIN TRANSACTION")
             try:
-                self._exec("MATCH (m:Memory {id: $id}) DETACH DELETE m", {"id": record_id})
-                self._exec(
-                    "CREATE (:Memory {id: $id, owner: $owner, memory_type: $mt, "
-                    "subject_scope: $scope, content: $content, emb: $emb, "
-                    "authority: $auth, confidence: $conf, created_at: $ca, "
-                    "valid_from: $vf, status: $status})",
-                    {"id": record_id, "owner": owner, "mt": memory_type, "scope": subject_scope,
-                     "content": content, "emb": embedding, "auth": authority,
-                     "conf": float(confidence), "ca": float(created_at),
-                     "vf": float(valid_from), "status": status})
+                if unchanged_vector:
+                    self._exec("MATCH (m:Memory {id: $id})-[r:MENTIONS]->() DELETE r", {"id": record_id})
+                    self._exec(
+                        "MATCH (m:Memory {id: $id}) SET m.owner=$owner, m.memory_type=$mt, "
+                        "m.subject_scope=$scope, m.content=$content, m.authority=$auth, "
+                        "m.confidence=$conf, m.created_at=$ca, m.valid_from=$vf, m.status=$status",
+                        {key: value for key, value in params.items() if key != "emb"})
+                else:
+                    self._exec("MATCH (m:Memory {id: $id}) DETACH DELETE m", {"id": record_id})
+                    self._exec(
+                        "CREATE (:Memory {id: $id, owner: $owner, memory_type: $mt, "
+                        "subject_scope: $scope, content: $content, emb: $emb, "
+                        "authority: $auth, confidence: $conf, created_at: $ca, "
+                        "valid_from: $vf, status: $status})", params)
                 self._exec("COMMIT")
             except Exception:
                 try:
@@ -283,7 +294,7 @@ class LadybugStore:
             # back to one row (fresh-insert-to-1 OR re-upsert-sole-to-1); rebuild so
             # the index is live. Cheap (1 row) and only fires when the whole store
             # holds exactly one memory.
-            if self.count() == 1:
+            if self.count() == 1 or not self.probe_index_healthy():
                 self._rebuild_vector_index()
             self._checkpoint()   # persist the index write so an ungraceful kill can't corrupt it
 
@@ -579,15 +590,21 @@ class LadybugStore:
                         pass
 
 
-_STORE_SINGLETON: LadybugStore | None = None
+_STORE_SINGLETON = None
+_STORE_LOCK = threading.RLock()
 
 
 def get_ladybug_store(path: str) -> LadybugStore:
-    """Process-wide singleton (embedded DB → one open handle per process)."""
+    """Single native worker; a changed path closes the old projection first."""
     global _STORE_SINGLETON
-    if _STORE_SINGLETON is None:
-        _STORE_SINGLETON = LadybugStore(path)
-    return _STORE_SINGLETON
+    from services.indexing.ladybug_worker import IsolatedLadybugStore
+    with _STORE_LOCK:
+        if _STORE_SINGLETON is not None and _STORE_SINGLETON._path != path:
+            _STORE_SINGLETON.close()
+            _STORE_SINGLETON = None
+        if _STORE_SINGLETON is None:
+            _STORE_SINGLETON = IsolatedLadybugStore(path)
+        return _STORE_SINGLETON
 
 
 def checkpoint_shared_store() -> None:
@@ -613,13 +630,14 @@ def reset_ladybug_store(path: str) -> None:
     the stale vectors). A clean wipe + re-project from SQLite guarantees the
     index is rebuilt over the NEW vectors. Caller re-enqueues the rebuild."""
     global _STORE_SINGLETON
-    if _STORE_SINGLETON is not None:
-        try:
-            _STORE_SINGLETON.close()
-        except Exception:  # noqa: BLE001
-            pass
-        _STORE_SINGLETON = None
-    _wipe_graph_files(path)
+    with _STORE_LOCK:
+        if _STORE_SINGLETON is not None:
+            try:
+                _STORE_SINGLETON.close()
+            except Exception:  # noqa: BLE001
+                pass
+            _STORE_SINGLETON = None
+        _wipe_graph_files(path)
 
 
 class LadybugIndexer:

@@ -196,3 +196,52 @@ async def test_email_capture_recall_is_participant_scoped(stack):
     # a non-participant does not
     other = await rpc_handlers.memory_search(agent_name="Other", query="deploy window staged")
     assert other["memories"] == []
+
+
+async def test_retro_procedure_requires_approval_then_survives_fresh_owner_session(stack, monkeypatch):
+    """A meeting/file is not learning: approved scoped procedure must be recalled."""
+    from core.database import AgentContextSnapshot, MemoryCandidate
+    from services.memory import candidate_service as cnd
+    # Approval persistence is tested separately; this flow isolates its memory side.
+    monkeypatch.setattr(cnd, '_create_approval_row', lambda candidate: None)
+    title = 'Verify connected browser before installing a replacement'
+    steps = ('When browser testing fails, inspect runtime tool inventory, then navigate '
+             'and snapshot through the connected Playwright MCP. A missing Node module '
+             'is not a disconnected MCP. Evidence: incident-test. Stop after one '
+             'failed probe and report the exact error; do not retry-install blindly.')
+    outcome = 'The connected Playwright MCP navigated and captured the game without a replacement installation.'
+    learning = dict(problem='A missing Node module was mistaken for a missing browser tool.',
+                    change='Try the connected Playwright MCP before installing a replacement.',
+                    applies_when='A local browser test reports a missing Node module.',
+                    outcome_excerpt=outcome)
+    import json
+    with stack.Factory() as db:
+        db.add(AgentContextSnapshot(agent_name='Retro QE', run_id='retro-e2e',
+                                   team_name='retro-test', trigger='idle',
+                                   context_json=json.dumps({'messages': [
+                                       {'role': 'user', 'content': [{'type': 'text', 'text': outcome}]}]})))
+        db.commit()
+    first = await rpc_handlers.procedure_propose(agent_name='Retro QE', title=title, steps=steps, learning=learning)
+    duplicate = await rpc_handlers.procedure_propose(agent_name='Retro QE', title=title, steps=steps, learning=learning)
+    assert first['candidate_id'] == duplicate['candidate_id']
+    assert first['status'] == 'pending'
+    await _drain(stack.worker)
+    before = await rpc_handlers.memory_search(agent_name='Retro QE', query='connected browser Playwright')
+    assert before['memories'] == []
+    with stack.Factory() as db:
+        candidate = db.get(MemoryCandidate, first['candidate_id'])
+        import json
+        payload = json.loads(candidate.payload_json)
+        assert payload['subject_scope'] == 'agent:Retro QE'
+        assert payload['memory_type'] == 'procedural'
+        assert candidate.requires_approval == 1
+        cnd.approve_candidate(db, candidate.id, _from_approval=True)
+    await _drain(stack.worker)
+    _CACHE.clear()  # new session cannot depend on the previous recall cache
+    recalled = await rpc_handlers.memory_search(agent_name='Retro QE', query='connected browser Playwright')
+    assert any('missing node module' in item['text'].lower() for item in recalled['memories']), recalled
+    full = await rpc_handlers.memory_fetch(agent_name='Retro QE', evidence_ids=[recalled['memories'][0]['id']])
+    assert 'missing node module' in full['items'][0]['content'].lower()
+    foreign = await rpc_handlers.memory_search(agent_name='Retro Dev', query='connected browser Playwright')
+    assert foreign['memories'] == []
+    assert (await rpc_handlers.procedure_propose(agent_name='Retro QE', title=title, steps=steps, learning=learning))['candidate_id'] == first['candidate_id']

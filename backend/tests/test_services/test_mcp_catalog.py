@@ -58,6 +58,24 @@ def test_seed_from_yaml_idempotent_on_second_call(tmp_path):
     assert second == {"inserted": 0, "skipped": 1}
 
 
+def test_builtin_playwright_default_migrates_but_custom_profile_survives(tmp_path):
+    legacy = ["-y", "@playwright/mcp@0.0.75", "--headless"]
+    cfg = _make_yaml(tmp_path, {"playwright": {"command": "npx", "args": legacy}})
+    secrets = tmp_path / "no-secrets.yaml"
+    mcp_catalog.seed_from_yaml(cfg, secrets)
+    cfg = _make_yaml(tmp_path, {"playwright": {"command": "npx", "args": legacy + ["--isolated"]}})
+    mcp_catalog.seed_from_yaml(cfg, secrets)
+    with SessionLocal() as db:
+        row = db.get(McpServerModel, "playwright")
+        assert json.loads(row.args_json) == legacy + ["--isolated"]
+        custom = legacy + ["--user-data-dir", "/custom/profile"]
+        row.args_json = json.dumps(custom)
+        db.commit()
+    mcp_catalog.seed_from_yaml(cfg, secrets)
+    with SessionLocal() as db:
+        assert json.loads(db.get(McpServerModel, "playwright").args_json) == custom
+
+
 def test_seed_from_yaml_does_not_overwrite_user_edits(tmp_path):
     cfg = _make_yaml(tmp_path, {"alpha": {"command": "python", "args": ["original.py"]}})
     secrets = tmp_path / "fastagent.secrets.yaml"

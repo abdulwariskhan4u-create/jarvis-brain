@@ -244,6 +244,7 @@ def run_scripted_subprocess(
     instruction: str = "You are a test agent.",
     servers: list[str] | None = None,
     extra_env: dict[str, str] | None = None,
+    team_name: str = "",
     timeout: int = 60,
 ) -> SubprocessResult:
     """Launch a real isolated_runner subprocess with ScriptedLLM replacing 'playback'.
@@ -271,6 +272,7 @@ def run_scripted_subprocess(
         "max_depth": 1,
         "workspace_dir": str(workspace),
         "role": "test_role",
+        "team_name": team_name,
         "lifecycle": "oneshot",
         "result_file": str(tmp_path / "result.json"),
     }

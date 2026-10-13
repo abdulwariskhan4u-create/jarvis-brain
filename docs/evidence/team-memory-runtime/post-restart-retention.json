@@ -1,0 +1,55 @@
+{
+  "framework_commit": "b0b224e1",
+  "observed_through": "Jarvis local Chat and SSE Team Monitor",
+  "real_auto_compaction": {
+    "id": 154,
+    "run_id": "22cc0b78",
+    "agent_name": "Quinn [Dev]",
+    "session_id": "fd71cddd",
+    "team_name": "local-survival-game",
+    "message_count_before": 49,
+    "message_count_after": 12,
+    "estimated_tokens_before": 120650,
+    "estimated_tokens_after": 95744,
+    "trigger": "auto_threshold",
+    "status": "completed"
+  },
+  "fresh_process_after_auto_compaction": {
+    "id": 972,
+    "run_id": "63d46258",
+    "session_id": "fd71cddd",
+    "team_name": "dev",
+    "message_count": 17,
+    "summary_present": true
+  },
+  "pm_action_emails": 1,
+  "dev_tool_calls_in_final_check": 0,
+  "pm_followups": 0,
+  "automatic_report_received": true,
+  "binary_recovery": {
+    "run_id": "f8c5ffff",
+    "text_attempts": 2,
+    "each_error_chars": 203,
+    "media_read_success": true,
+    "llm_calls": 4,
+    "input_tokens": 226966,
+    "cached_input_tokens": 108032,
+    "output_tokens": 368,
+    "estimated_cost_usd": 0.436055,
+    "pricing": "fallback"
+  },
+  "limitations": [
+    "Existing historical local summary loss was repaired from owned snapshots before the first retention check.",
+    "Recall may assist answers; independent SQLite native summary persistence and new process identity provide structural retention evidence.",
+    "Token estimates for compaction are heuristic, not provider token invoices.",
+    "A duplicate rejected text-read was observed; successful recovery does not establish optimal agent behavior."
+  ],
+  "metadata_fix_verified_snapshot": {
+    "id": 976,
+    "run_id": "062343fe",
+    "session_id": "fd71cddd",
+    "team_name": "local-survival-game",
+    "message_count": 19,
+    "summary_present": true
+  }
+}
