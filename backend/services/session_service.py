@@ -752,7 +752,10 @@ class SessionService:
                 pass
 
             _t0 = _time.time()
-            response = await agent_app.send(send_payload, agent_name=target_agent_name)
+            from services.cognitive.live import send_live_turn
+            response = await send_live_turn(
+                agent_app, target_agent, send_payload, message, target_agent_name, session,
+            )
             _duration = _time.time() - _t0
             _resp_len = len(str(response)) if response else 0
             logger.debug(f"[SESSION] Response received len={_resp_len} duration={_duration:.1f}s session={session_id} agent={target_agent_name}")
