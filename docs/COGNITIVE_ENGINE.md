@@ -68,7 +68,7 @@ belong in environment variables and existing `.env.example` templates only.
 
 ## Integrating with the existing runtime
 
-The module is opt-in; the default chat and voice routes are unchanged. Call
+The standalone kernel can also be used directly. Call
 `await engine.run(goal, world)` from an authenticated backend service. Register
 only adapters permitted for that request, retaining the existing approval flow.
 Do not expose an unauthenticated execution endpoint.
@@ -94,3 +94,41 @@ recovery, pruning, transient retries, timeouts, approval enforcement, write repl
 prevention, cancellation, JSON snapshots, budgets, and dependency ordering.
 The full Jarvis stack and real provider/MCP adapters require separate integration
 testing with configured services and initialized submodules.
+
+## Live chat and voice integration
+
+`SessionService.resume_and_send` dispatches through `cognitive.live.send_live_turn`.
+This shared session boundary covers `/api/chat`, `/api/chat-stream`, and
+`/ws/voice` without changing their payload or response contracts. Existing
+session locking, attachments, cancellation rollback, persistence, MCP execution,
+and approval hooks remain in the original runtime.
+
+Enabled by default with `JARVIS_COGNITIVE_ENABLED=1`; set `0` to disable.
+An optional `JARVIS_COGNITIVE_MODEL` selects a provider-qualified model, using
+existing provider credentials. Without an available configured model, original
+dispatch continues once. No new credential is needed and none is embedded.
+
+A separate tools-free LLM produces 1-3 bounded advisory approaches with facts,
+unknowns, assumptions and success checks. The kernel critiques and ranks these;
+a temporary `ToolRunnerHooks.before_llm_call` injects the selected approach,
+explicitly labeled untrusted and non-authorizing. Original hooks are restored
+in `finally`. The original user payload, including attachments, is sent intact.
+
+After dispatch, a second tools-free model call reviews the response. This is
+an **advisory semantic review**, not independent proof that external effects
+occurred. A failed or unavailable review cannot silently replay the turn.
+The agent's response is retained, and the status is available in the session's
+`cognitive_last_turn` metadata. Only run ID, status, review type and attempt count
+are saved there; no raw text, attachments, outputs, or private reasoning.
+
+Planning and review each have a 20-second timeout. The original agent turn has
+a one-hour upper bound and no automatic retry. Planning failure falls back to
+the original dispatch once; execution failures propagate. Existing approval
+rules decide individual tool permissions. Authorization to dispatch the user
+turn is not authorization for any tool's side effects.
+
+Progress is pushed through the existing progress and activity managers (including
+voice's progress drain); no polling or new unauthenticated endpoints are added.
+Model calls add latency and provider usage; disable the bridge if undesired.
+The isolated live suite uses model/runtime test adapters. Successful CI does not
+claim a real microphone, cloud provider or deployed MCP flow has been exercised.
