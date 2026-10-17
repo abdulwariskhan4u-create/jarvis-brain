@@ -3,8 +3,12 @@
 import asyncio
 import json
 import unittest
+import importlib.util
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from services.cognitive.live import decode_strategies, deliberate_turn
+from services.cognitive.live import send_live_turn
 
 
 PLAN = json.dumps({"strategies": [
@@ -101,6 +105,51 @@ class LiveTurnTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(s.steps[0].tool == "agent_turn" for s in strategies))
         with self.assertRaises(ValueError):
             decode_strategies('{"strategies":[]}')
+
+
+@unittest.skipUnless(importlib.util.find_spec("fast_agent"), "requires backend runtime")
+class LiveRuntimeContractTests(unittest.IsolatedAsyncioTestCase):
+    async def exercise(self, *, fails=False):
+        from fast_agent.agents.tool_runner import ToolRunnerHooks
+        original_calls = []
+        async def original_hook(runner, messages):
+            original_calls.append(True)
+        original = ToolRunnerHooks(before_llm_call=original_hook)
+        agent = SimpleNamespace(tool_runner_hooks=original)
+        session = SimpleNamespace(info=SimpleNamespace(name="session-a", metadata={}))
+        payload = object()  # Includes attachments in production; preserve identity.
+        answers = iter([PLAN, '{"passed":true}'])
+        async def generate(prompt):
+            return next(answers)
+        received = []
+        guidance = []
+        async def send(actual, agent_name=None):
+            received.append(actual)
+            await agent.tool_runner_hooks.before_llm_call(
+                SimpleNamespace(iteration=0, append_messages=guidance.append), [])
+            if fails:
+                raise ValueError("dispatch failed")
+            return "Completed"
+        app = SimpleNamespace(send=send)
+        try:
+            with patch.dict("os.environ", {"JARVIS_COGNITIVE_ENABLED": "1"}), patch(
+                "services.cognitive.live.build_generate", return_value=generate,
+            ):
+                response = await send_live_turn(app, agent, payload, "task", "Jarvis", session)
+                self.assertEqual(response, "Completed")
+                self.assertEqual(session.info.metadata["cognitive_last_turn"]["status"], "succeeded")
+        finally:
+            self.assertIs(agent.tool_runner_hooks, original)
+            self.assertEqual(received, [payload])
+            self.assertEqual(original_calls, [True])
+            self.assertIn("not authorization", guidance[0])
+
+    async def test_payload_and_existing_hooks_preserved(self):
+        await self.exercise()
+
+    async def test_hooks_restored_after_dispatch_error(self):
+        with self.assertRaisesRegex(ValueError, "dispatch failed"):
+            await self.exercise(fails=True)
 
 
 if __name__ == "__main__":
