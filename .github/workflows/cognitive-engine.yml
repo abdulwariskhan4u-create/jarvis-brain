@@ -1,0 +1,22 @@
+name: Cognitive intent engine
+on:
+  pull_request:
+    paths:
+      - 'backend/services/cognitive/**'
+      - 'backend/tests/test_cognitive_engine.py'
+      - '.github/workflows/cognitive-engine.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m unittest discover -s tests -p test_cognitive_engine.py -v
+        working-directory: backend
+      - run: python -m services.cognitive.demo
+        working-directory: backend
